@@ -26,6 +26,10 @@ class OpenAlexError(Exception):
     pass
 
 
+class BudgetExhausted(OpenAlexError):
+    """OpenAlex's daily budget is spent (a 429 with a long wait, or one that does not lift): stop asking until tomorrow."""
+
+
 def _urlopen(url: str, headers: dict[str, str]) -> tuple[int, dict[str, str], bytes]:
     """GET: (status, lower-case headers, body); a network failure is status 0, retried like a 5xx."""
     try:
@@ -44,6 +48,7 @@ class Client:
         self._sleep = sleep
         self._pause = pause  # between requests: under 10 a second, OpenAlex's keyless limit
         self.calls = 0
+        self.exhausted = False  # the daily budget ran out during this run
 
     def get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         url = API + path + "?" + urllib.parse.urlencode(params)
@@ -51,6 +56,8 @@ class Client:
         if self.key:
             headers["Authorization"] = f"Bearer {self.key}"
         status = 0
+        if self.exhausted:
+            raise BudgetExhausted("OpenAlex's daily budget is spent")
         for attempt in range(5):
             if self.calls:
                 self._sleep(self._pause)
@@ -58,7 +65,11 @@ class Client:
             status, response_headers, body = self._get(url, headers)
             if status in (0, 429) or status >= 500:
                 wait = response_headers.get("retry-after", "")
-                self._sleep(min(60.0, float(wait)) if wait.replace(".", "", 1).isdigit() else 2.0**attempt)
+                seconds = float(wait) if wait.replace(".", "", 1).isdigit() else 2.0**attempt
+                if status == 429 and seconds > 60:  # told to come back in hours: the day's budget is gone
+                    self.exhausted = True
+                    raise BudgetExhausted(f"OpenAlex's daily budget is spent (come back in {seconds / 3600:.1f} hours)")
+                self._sleep(min(60.0, seconds))
                 continue
             if status != 200:
                 raise OpenAlexError(f"OpenAlex answered {status} for {url}: {body[:200].decode('utf-8', 'replace')}")
@@ -69,6 +80,9 @@ class Client:
             if not isinstance(data, dict):
                 raise OpenAlexError(f"OpenAlex's answer for {url} is not a list of results")
             return data
+        if status == 429:
+            self.exhausted = True
+            raise BudgetExhausted("OpenAlex kept answering 429: the daily budget is spent")
         what = "could not be reached" if status == 0 else f"kept answering {status}"
         raise OpenAlexError(f"OpenAlex {what} for {url}; try later, or set OPENALEX_API_KEY")
 

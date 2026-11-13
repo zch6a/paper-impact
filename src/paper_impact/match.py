@@ -7,13 +7,14 @@ stays unmatched and counted."""
 
 from __future__ import annotations
 
+import contextlib
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from .openalex import FIELDS
+from .openalex import FIELDS, BudgetExhausted
 
 WORD = re.compile(r"[^\w]+")
 
@@ -56,9 +57,16 @@ def _pick(norm: str, works: Iterable[dict[str, Any]], year: int) -> Match:
 
 
 def match(titles: list[str], year: int, search: Searcher, batch: int = 20, close: bool = True) -> dict[str, Match]:
-    """Each title's match, by its normalized form. `search` runs one OpenAlex works search."""
-    norms = list(dict.fromkeys(n for n in (normalize(t) for t in titles) if n))
+    """Each title's match, by its normalized form. `search` runs one OpenAlex works search. When OpenAlex's budget runs
+    out midway, the matches made so far are returned; the other titles are left out (unmatched, for the next run)."""
     out: dict[str, Match] = {}
+    with contextlib.suppress(BudgetExhausted):
+        _match(titles, year, search, batch, close, out)
+    return out
+
+
+def _match(titles: list[str], year: int, search: Searcher, batch: int, close: bool, out: dict[str, Match]) -> None:
+    norms = list(dict.fromkeys(n for n in (normalize(t) for t in titles) if n))
     retry: list[str] = []
     for i in range(0, len(norms), batch):
         group = norms[i : i + batch]
@@ -78,7 +86,6 @@ def match(titles: list[str], year: int, search: Searcher, batch: int = 20, close
         for n in [n for n, m in out.items() if m.work is None]:
             answer = search({"filter": f"title.search:{n},publication_year:{year - 1}-{year + 1}", "per_page": "25", "select": FIELDS})
             out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
-    return out
 
 
 def similar(a: str, b: str) -> float:

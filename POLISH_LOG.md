@@ -132,3 +132,12 @@ Tests: 18. ruff, mypy clean.
 
 Next: the public repository and CI; Pages turned on (a repository setting), then the first full build: without a key
 the shared $0.10 a day covers about 2,000 papers a day, so a key from the user would make it days instead of weeks.
+
+### 2026-11-13 — a build that outlasts the day's budget
+
+- A keyless build runs out of OpenAlex's shared daily budget long before 35,000 papers. It used to fail. Now a 429 with
+  a long wait (or one that does not lift) marks the budget spent: the matches made so far are kept, papers matched in an
+  earlier build keep their last numbers, the rest are listed without numbers, and the data is written as usual; the
+  next build, reusing it, carries on. The command line says so. A test runs spent, then funded, then spent again.
+
+Tests: 19.

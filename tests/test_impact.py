@@ -200,3 +200,26 @@ def test_the_cli_builds(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys:
     assert (tmp_path / "site" / "index.html").exists() and (tmp_path / "site" / "data" / "icml" / "2017.json").exists()
     assert "1 venue-years, 2 papers, 1 matched in OpenAlex (50%)" in capsys.readouterr().out
     assert main(["build", str(tmp_path / "missing.json")]) == 2
+
+
+def test_an_exhausted_budget_keeps_what_was_found_and_the_next_build_carries_on(tmp_path: Path) -> None:
+    pages = {"https://papers.nips.cc/paper_files/paper/2017": NEURIPS}
+    venues = [Venue("NeurIPS", "", "neurips", {2017: "https://papers.nips.cc/paper_files/paper/2017"})]
+
+    class Spent(FakeWeb):
+        def __call__(self, url: str, headers: dict[str, str]) -> tuple[int, dict[str, str], bytes]:
+            if url.startswith("https://api.openalex.org"):
+                self.calls.append((url, headers))
+                return 429, {"retry-after": "40000"}, b"{}"
+            return super().__call__(url, headers)
+
+    c = Client(key="", get=Spent(pages), sleep=lambda _: None)
+    vys = build(venues, range(2017, 2018), c, 2026, tmp_path)
+    assert c.exhausted and [len(vy.papers) for vy in vys] == [3] and vys[0].matched == 0  # listed, not matched
+    write_data(tmp_path, venues, vys, "2026-11-13")
+    vys = build(venues, range(2017, 2018), Client(key="", get=FakeWeb(pages), sleep=lambda _: None), 2026, tmp_path)
+    assert vys[0].matched == 2  # the next day: matched
+    write_data(tmp_path, venues, vys, "2026-11-14")
+    c = Client(key="", get=Spent(pages), sleep=lambda _: None)
+    vys = build(venues, range(2017, 2018), c, 2026, tmp_path)
+    assert vys[0].matched == 2 and vys[0].papers[0].cited_by_count == 500  # spent again: the last numbers stand

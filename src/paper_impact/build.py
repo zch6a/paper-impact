@@ -13,7 +13,7 @@ from typing import Any
 from . import __version__
 from .match import match, normalize
 from .model import Paper, VenueYear
-from .openalex import Client
+from .openalex import BudgetExhausted, Client
 from .proceedings import PARSERS, parse
 
 SLUG = re.compile(r"[^a-z0-9]+")
@@ -86,14 +86,19 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
     listed = parse(venue.kind, page, url)
     papers = [Paper(item.title, year, item.url) for item in listed]
     known = {normalize(p.title): previous[normalize(p.title)] for p in papers if normalize(p.title) in previous and previous[normalize(p.title)].id}
-    fresh = {w.get("id"): w for w in client.by_ids([p.id for p in known.values()])} if known else {}
+    try:
+        fresh = {w.get("id"): w for w in client.by_ids([p.id for p in known.values()])} if known else {}
+    except BudgetExhausted:
+        fresh = {}  # the budget is spent: the numbers of the last build stand
     to_search = [p.title for p in papers if normalize(p.title) not in known]
-    found = match(to_search, year, client.search) if to_search else {}
+    found = match(to_search, year, client.search) if to_search and not client.exhausted else {}
     out = []
     for p in papers:
         n = normalize(p.title)
         if n in known and known[n].id in fresh:
             out.append(p.with_work(fresh[known[n].id], as_of_year, known[n].also))
+        elif n in known:
+            out.append(known[n])  # matched before, not refreshed this time
         elif n in found and found[n].work is not None:
             out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
         else:
