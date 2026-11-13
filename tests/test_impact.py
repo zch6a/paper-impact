@@ -260,3 +260,13 @@ def test_a_venue_year_listed_over_several_pages_and_an_empty_one(tmp_path: Path)
     }
     vys, failures = build([venue], range(2019, 2020), Client(key="", get=FakeWeb(empty), sleep=lambda _: None), 2026, tmp_path / "x")
     assert vys == [] and "lists no papers" in failures[0].reason
+
+
+def test_the_virtual_site_parser() -> None:
+    page = """<title>ICLR 2024 Papers</title><a href="/accounts/login?nextp=/virtual/2024/poster/1">Login</a><noscript><ul>
+<li><a href="/virtual/2024/poster/18969">Robot Fleet Learning via Policy Merging</a></li>
+<li><a href="/virtual/2024/oral/19800">An Oral Paper</a></li><li><a href="/virtual/2024/poster/19801">An Oral Paper</a></li>
+</ul></noscript><a href="/virtual/2024/events/workshop">Workshops</a>"""
+    got = parse("virtual", page, "https://iclr.cc/virtual/2024/papers.html")
+    assert [(p.title, p.url) for p in got] == [("Robot Fleet Learning via Policy Merging", "https://iclr.cc/virtual/2024/poster/18969"),
+                                               ("An Oral Paper", "https://iclr.cc/virtual/2024/oral/19800")]  # fmt: skip

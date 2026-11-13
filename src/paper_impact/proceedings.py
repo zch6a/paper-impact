@@ -7,12 +7,15 @@ paper's page (no abstracts, no PDFs).
   with the abstract page as the first link of ``<p class="links">``.
 - ``cvf``: the Computer Vision Foundation's open access page of a conference (CVPR, ICCV, WACV), all days:
   ``<dt class="ptitle"><a href=...>Title</a></dt>``.
+- ``virtual``: a conference's virtual site, its papers page (ICLR since 2021): the plain list of links to each paper's
+  page, ``<a href="/virtual/2024/poster/18969">Title</a>`` (posters and orals).
 - ``acl``: an ACL Anthology volume page: each paper is ``<strong><a class="align-middle" href=...>Title</a></strong>``;
   the volume's own entry (its front matter, ``….0/``) is not a paper.
 """
 
 from __future__ import annotations
 
+import re
 import urllib.parse
 from dataclasses import dataclass
 from html.parser import HTMLParser
@@ -146,7 +149,35 @@ class _Acl(_Linked):
         super().__init__(base, "strong", "", "align-middle", ".0")
 
 
-PARSERS: dict[str, type[_Parser]] = {"neurips": _Neurips, "pmlr": _Pmlr, "cvf": _Cvf, "acl": _Acl}
+class _Virtual(_Parser):
+    """Links to /virtual/<year>/poster/<n> or /oral/<n>: each a paper."""
+
+    def __init__(self, base: str) -> None:
+        super().__init__(base)
+        self._href: str | None = None
+        self._text: list[str] = []
+        self._titles: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        href = dict(attrs).get("href") or ""
+        if tag == "a" and re.fullmatch(r"/virtual/\d{4}/(?:poster|oral)/\d+/?", href.strip()):
+            self._href, self._text = href.strip(), []
+
+    def handle_data(self, data: str) -> None:
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._href is not None:
+            title = " ".join("".join(self._text).split())
+            # an oral is listed under its oral and its poster page: one paper (the first link kept)
+            if title and title.casefold() not in self._titles:
+                self._titles.add(title.casefold())
+                self.out.append(Listed(title, urllib.parse.urljoin(self.base, self._href)))
+            self._href = None
+
+
+PARSERS: dict[str, type[_Parser]] = {"neurips": _Neurips, "pmlr": _Pmlr, "cvf": _Cvf, "acl": _Acl, "virtual": _Virtual}
 
 
 def parse(kind: str, page: str, base: str) -> list[Listed]:
