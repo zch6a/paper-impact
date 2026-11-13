@@ -2,7 +2,7 @@
 
 # paper-impact
 
-**Which papers at AI venues mattered: every paper NeurIPS, ICML, CVPR and ACL published, with its citations and field-normalized
+**Which papers at AI venues mattered: every paper NeurIPS, ICML, ICLR, CVPR and ACL published, with its citations and field-normalized
 impact, by year.** The paper lists come from each venue's own proceedings; the numbers from
 [OpenAlex](https://openalex.org) (open, CC0). Open JSON and a static site, rebuilt daily.
 
@@ -43,8 +43,9 @@ not found are listed without numbers. The data is public: `data/index.json` and 
 uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.json -o site/ --years 2015-2024
 ```
 
-[venues.json](venues.json) lists NeurIPS 2012–2024, ICML 2013–2025 (PMLR), CVPR 2013–2025 (CVF open access) and ACL
-2013–2025 (long papers; 2020's main volume) by their proceedings pages, 60,234 papers; each page names the
+[venues.json](venues.json) lists NeurIPS 2012–2024, ICML 2013–2025 (PMLR), ICLR 2021–2025 (its virtual site's papers
+page), CVPR 2013–2025 (CVF open access) and ACL
+2013–2025 (long papers; for 2020 the main volume, long and short) by their proceedings pages, 69,889 papers; each page names the
 text it must contain (the venue, the year), so a wrong volume fails instead of bringing in another conference.
 
 - **Matching**: titles are searched in OpenAlex about 20 to a search, accepted only on the exact title (normalized)

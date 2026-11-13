@@ -221,3 +221,33 @@ Round 1's CI was green; its page went live with the next site run (26 venue-year
 Tests: 32 (were 30). ruff, mypy clean.
 
 Next: round 3.
+
+### 2026-11-13 — polishing round 3
+
+- **ICLR** has no proceedings site beyond OpenReview (whose API answers 403), but its conference site's papers page
+  (`iclr.cc/virtual/<year>/papers.html`) carries a plain list of links to each paper's page (inside `<noscript>`).
+  A `virtual` parser reads it; ICLR 2021–2025: 860, 1,095, 1,584, 2,296, 3,827 (2021 and 2022 equal the accepted
+  counts; 2024–2025 run a little above, as that page lists them).
+
+**Second independent review** (5 confirmed, 2 plausible, all fixed; tests in `tests/test_review_round2.py`):
+
+1. The looser pass matched short generic titles the exact pass had refused ("Introduction" → the most cited of five
+   namesakes): the looser try is never made for titles of one or two words.
+2. A title that became shared on a later day kept its "exact:" mark and the looser pass matched both papers to one
+   record: a shared title carries no mark and the looser pass skips it.
+3. ACL 2013–2019 counted each volume's front matter as a paper (old identifiers end in `000`, e.g. `P17-1000`): skipped
+   now, seven entries fewer.
+4. Reading back the earlier data was quadratic (4,500 papers: 160 s; about 15 minutes of CPU every daily build):
+   linear now (5,000 papers in under a second in the test).
+5. The workflow's comment still promised 2,000 papers a run: the measured pace.
+6. (plausible) The looser pass walked the venues in order, so later ones could wait for ever: it now takes the longest
+   waiting first, across venue-years.
+7. (plausible) A title changed on the same link kept the old paper's record or mark: a changed title is looked up
+   afresh.
+
+Also: the README says ACL 2020 is its main volume (long and short papers). venues.json now lists 69,889 papers
+(NeurIPS and ICML 34,609, ICLR 9,662, CVPR 18,452, ACL 7,166).
+
+Tests: 39 (were 32). ruff, mypy clean.
+
+Next: round 4.

@@ -118,9 +118,19 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
         raise ValueError(f"{url} lists no papers: has the page changed?")
     norm = {id(p): normalize(p.title) for p in papers}
     counts = Counter(norm.values())
-    by_url = {q.url: q for q in previous if q.url}
-    by_title = {n: q for n, q in ((normalize(q.title), q) for q in previous) if sum(1 for r in previous if normalize(r.title) == n) == 1}
-    before = {id(p): by_url.get(p.url) or by_title.get(norm[id(p)]) for p in papers}
+    previous_norm = [(normalize(q.title), q) for q in previous]
+    previous_counts = Counter(n for n, _ in previous_norm)
+    by_url = {q.url: (n, q) for n, q in previous_norm if q.url}
+    by_title = {n: q for n, q in previous_norm if previous_counts[n] == 1}
+
+    def earlier(p: Paper) -> Paper | None:
+        """The same paper in the earlier build: by its link (if its title is still the same), else by its title."""
+        if p.url in by_url:
+            n, q = by_url[p.url]
+            return q if n == norm[id(p)] else None  # the title changed on the page: a paper to look up afresh
+        return by_title.get(norm[id(p)])
+
+    before = {id(p): earlier(p) for p in papers}
 
     known = {id(p): q for p in papers if (q := before[id(p)]) is not None and q.id and counts[norm[id(p)]] == 1}
     try:
@@ -150,8 +160,9 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
             out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
         elif n in found and wanted(p):
             out.append(Paper(p.title, year, p.url, tried=EXACT_MISSED + today.isoformat()))  # the exact search missed today
-        else:
-            out.append(Paper(p.title, year, p.url, tried=q.tried if q is not None and not q.id else ""))
+        else:  # a title shared in this venue-year carries no mark: it is never searched
+            keep = q is not None and not q.id and counts[n] == 1
+            out.append(Paper(p.title, year, p.url, tried=q.tried if keep and q is not None else ""))
     return VenueYear(venue.name, year, url, out)
 
 
@@ -188,22 +199,29 @@ def build(venues: list[Venue], years: range, client: Client, as_of_year: int, ou
 
 
 def _close_pass(venue_years: list[VenueYear], client: Client, as_of_year: int, today: dt.date | None = None) -> None:
-    """The looser try for every paper whose exact search missed, with the budget the exact searches left: a paper
-    still unmatched after it is marked as tried today (and searched again only after RETRY_DAYS); one the budget
-    did not reach keeps waiting."""
+    """The looser try for every paper whose exact search missed, with the budget the exact searches left, the longest
+    waiting first (across venue-years, so the later ones are not starved): a paper still unmatched after it is marked
+    as tried today (and searched again only after RETRY_DAYS); one the budget did not reach keeps waiting. A title
+    shared within its venue-year is not tried."""
     today = today or dt.date.today()
+    waiting: list[tuple[str, VenueYear, int]] = []  # (since when, venue-year, index): the oldest first, so none starves
     for vy in venue_years:
-        waiting = [p for p in vy.papers if not p.id and p.tried.startswith(EXACT_MISSED)]
-        if not waiting or client.exhausted:
-            continue
-        found = close_match([p.title for p in waiting], vy.year, client.search)
+        counts = Counter(normalize(p.title) for p in vy.papers)
         for i, p in enumerate(vy.papers):
-            n = normalize(p.title)
-            if p in waiting and n in found:
-                m = found[n]
-                vy.papers[i] = (
-                    p.with_work(m.work, as_of_year, m.also, m.how) if m.work is not None else Paper(p.title, p.year, p.url, tried=today.isoformat())
-                )
+            if not p.id and p.tried.startswith(EXACT_MISSED) and counts[normalize(p.title)] == 1:
+                waiting.append((p.tried, vy, i))
+    waiting.sort(key=lambda t: t[0])
+    for _, vy, i in waiting:
+        if client.exhausted:
+            return
+        p = vy.papers[i]
+        found = close_match([p.title], vy.year, client.search)
+        m = found.get(normalize(p.title))
+        if m is None:
+            continue  # the budget ran out: it keeps waiting
+        vy.papers[i] = (
+            p.with_work(m.work, as_of_year, m.also, m.how) if m.work is not None else Paper(p.title, p.year, p.url, tried=today.isoformat())
+        )
 
 
 def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], generated: str) -> list[Path]:

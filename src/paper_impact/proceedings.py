@@ -129,10 +129,13 @@ class _Linked(_Parser):
         if self._href is not None:
             self._text.append(data)
 
+    def skipped(self, href: str) -> bool:
+        return bool(self._skip) and href.rstrip("/").endswith(self._skip)
+
     def handle_endtag(self, tag: str) -> None:
         if tag == "a" and self._href is not None:
             title = " ".join("".join(self._text).split())
-            if title and not (self._skip and self._href.rstrip("/").endswith(self._skip)):
+            if title and not self.skipped(self._href):
                 self.out.append(Listed(title, urllib.parse.urljoin(self.base, self._href)))
             self._href = None
         elif tag == self._holder:
@@ -147,6 +150,10 @@ class _Cvf(_Linked):
 class _Acl(_Linked):
     def __init__(self, base: str) -> None:
         super().__init__(base, "strong", "", "align-middle", ".0")
+
+    def skipped(self, href: str) -> bool:
+        # the volume's own entry: 2020.acl-main.0, and in the old identifiers P17-1000
+        return href.rstrip("/").endswith(".0") or re.search(r"/[A-Z]\d{2}-\d000$", href.rstrip("/")) is not None
 
 
 class _Virtual(_Parser):

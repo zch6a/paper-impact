@@ -133,6 +133,12 @@ def _stem(word: str) -> str:
 
 
 def _close(norm: str, works: list[dict[str, Any]], year: int) -> Match:
+    if len(norm.split()) <= 2:
+        return Match(norm)  # a short title ("Introduction", "Deep Sets"): exact or nothing, never "nearly"
+    return _closest(norm, works, year)
+
+
+def _closest(norm: str, works: list[dict[str, Any]], year: int) -> Match:
     """The looser try's pick: a title sharing at least 85% of the words (a hyphen, a plural, a dropped article), of a
     length within 15%, in the year window; the most alike, then the most cited."""
     good = []

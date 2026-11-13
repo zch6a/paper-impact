@@ -2,7 +2,7 @@
 
 # paper-impact
 
-**AI 会议里哪些论文真正有影响：NeurIPS、ICML、CVPR 与 ACL 历年发表的每一篇论文，连同它的被引数和领域归一化影响力。** 论文清单来自各会议自己的论文集，
+**AI 会议里哪些论文真正有影响：NeurIPS、ICML、ICLR、CVPR 与 ACL 历年发表的每一篇论文，连同它的被引数和领域归一化影响力。** 论文清单来自各会议自己的论文集，
 数字来自 [OpenAlex](https://openalex.org)（开放数据，CC0）。公开 JSON 加静态网站，每天重建。
 
 <a href="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml/badge.svg"></a>
@@ -39,7 +39,7 @@ ICML 2017 的实际构建结果（论文集共 434 篇）：
 uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.json -o site/ --years 2015-2024
 ```
 
-[venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024、ICML 2013–2025（PMLR）、CVPR 2013–2025（CVF open access）和 ACL 2013–2025（长文；2020 年为主卷），共 60234 篇；每个页面都写明它必须包含的文字（会议名、年份），
+[venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024、ICML 2013–2025（PMLR）、ICLR 2021–2025（会议网站的论文页）、CVPR 2013–2025（CVF open access）和 ACL 2013–2025（长文；2020 年为主卷，含长文与短文），共 69889 篇；每个页面都写明它必须包含的文字（会议名、年份），
 卷号写错时会直接报错，而不是悄悄混进另一个会议。
 
 - **匹配**：标题在 OpenAlex 里每次约 20 个一起搜索，只接受规范化后完全相同、年份相差不超过一年的记录；没命中的再宽松地试一次
