@@ -3,7 +3,7 @@
 # paper-impact
 
 **AI 会议里哪些论文真正有影响：NeurIPS 与 ICML 历年发表的每一篇论文，连同它的被引数和领域归一化影响力。** 论文清单来自各会议自己的论文集，
-数字来自 [OpenAlex](https://openalex.org)（开放数据，CC0）。公开 JSON 加静态网站，每月重建。
+数字来自 [OpenAlex](https://openalex.org)（开放数据，CC0）。公开 JSON 加静态网站，每天重建。
 
 <a href="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
@@ -46,7 +46,7 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
   （85% 的词相同、长度相近），在数据里标为 `close`。预印本和论文集版本两条记录时，显示被引更多的那条，另一条记在 `also` 里（不相加：OpenAlex 是分开计数的）。
 - **费用**：每次搜索花 OpenAlex 额度 0.001 美元，一个 1000 篇的会议年份约 0.05 美元。不设 `OPENALEX_API_KEY` 时每天 0.10 美元额度，
   同一 IP 下所有人共享；免费 key 每天 1 美元。重建时复用 `site/` 里已有的数据：只搜索还没找到的论文，其余按 ID 刷新（每次请求 100 篇，0.0001 美元）。
-- **每月构建**（[site.yml](.github/workflows/site.yml)）：构建任务用只读权限运行，数据存在 Actions 缓存里；部署任务只负责发布到 Pages。
+- **每日构建**（[site.yml](.github/workflows/site.yml)）：构建任务用只读权限运行，数据存在 Actions 缓存里；部署任务只负责发布到 Pages。
   在仓库里加一个 `OPENALEX_API_KEY` secret，首次全量构建可以从几周缩短到几天。
 
 ## 这些数字是什么

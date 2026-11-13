@@ -141,3 +141,19 @@ the shared $0.10 a day covers about 2,000 papers a day, so a key from the user w
   next build, reusing it, carries on. The command line says so. A test runs spent, then funded, then spent again.
 
 Tests: 19.
+
+### 2026-11-13 — public, and the first build
+
+- Checked first: commits by zch6a with the noreply address only, no attribution, no personal paths or names.
+- https://github.com/zch6a/paper-impact (public, main), description and topics; CI green (three systems × 3.10/3.13).
+- GitHub Pages turned on for the repository (published by the workflow), and the site workflow run by hand: build
+  and deploy succeeded. All 26 venue-years read (34,609 papers, as the pages list them); OpenAlex's shared budget on
+  the runner's address ran out after 127 requests, with 649 papers matched (NeurIPS 2012 329 of 370, 2013 320 of 360,
+  the rest waiting). The budget handling did what it is for: the site went up with what there was.
+- Live at https://zch6a.github.io/paper-impact/ (page and data checked).
+- At that pace a monthly build would take years to fill, so the build is now **daily**: each run carries on from the
+  cached data, about 2,000 papers a run without a key, two or three weeks to fill; a run with nothing new only
+  refreshes by ID. With an `OPENALEX_API_KEY` secret (the user's to add) it would take days. READMEs say so.
+
+Next: the five polishing rounds while the data fills (an independent review; the site on real data at phone width;
+more venues whose proceedings pages are reachable: ICLR, ACL, CVPR).

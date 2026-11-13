@@ -1,12 +1,14 @@
 name: Site
-# Monthly (and by hand): build the data and the site, then publish them on GitHub Pages.
+# Daily (and by hand): build the data and the site, then publish them on GitHub Pages. Daily, because without a key
+# OpenAlex's shared budget matches about 2,000 papers a run: each run carries on from the last (a run with nothing new
+# to search only refreshes citations by ID, a few hundred cheap requests).
 # - The build job runs the tool with a read-only token. The data of the last build is restored from the cache, so only
 #   new venue-years (and papers) are searched; matched papers are refreshed by ID. OPENALEX_API_KEY, if the repository
 #   has that secret, raises OpenAlex's daily budget; without it the build still runs, slower to fill.
 # - The deploy job runs nothing of the project: it publishes the artifact the build uploaded.
 # Actions pinned to commits.
 on:
-  schedule: [{ cron: "17 4 3 * *" }]   # the 3rd of each month
+  schedule: [{ cron: "17 4 * * *" }]   # every day, 04:17 UTC
   workflow_dispatch:
 permissions:
   contents: read

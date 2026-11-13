@@ -4,7 +4,7 @@
 
 **Which papers at AI venues mattered: every paper NeurIPS and ICML published, with its citations and field-normalized
 impact, by year.** The paper lists come from each venue's own proceedings; the numbers from
-[OpenAlex](https://openalex.org) (open, CC0). Open JSON and a static site, rebuilt monthly.
+[OpenAlex](https://openalex.org) (open, CC0). Open JSON and a static site, rebuilt daily.
 
 <a href="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
@@ -54,8 +54,8 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
   `OPENALEX_API_KEY` the budget is $0.10 a day shared by everyone on your IP address; a free key gives $1. A rebuild
   reuses the data already in `site/`: only papers not yet found are searched, the others refreshed by ID (100 to a
   request, $0.0001).
-- **The monthly build** ([site.yml](.github/workflows/site.yml)): the build job runs with a read-only token and keeps
-  its data in the Actions cache; the deploy job only publishes to Pages. Add an `OPENALEX_API_KEY` secret for a full
+- **The daily build** ([site.yml](.github/workflows/site.yml)): the build job runs with a read-only token and keeps
+  its data in the Actions cache; the deploy job only publishes to Pages. Without a key each run matches about 2,000 papers, so the site fills over two or three weeks; an `OPENALEX_API_KEY` secret makes that a few days. Add one for a full
   first build in days rather than weeks.
 
 ## What the numbers are
