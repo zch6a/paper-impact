@@ -1,6 +1,6 @@
 """The site: one self-contained page (no libraries, fonts or trackers fetched) that reads the JSON next to it. Pick a
 venue and a year (or all years), sort by citations, field-normalized percentile, FWCI or recent citations, search
-titles; each venue-year says how much of it OpenAlex covers against the official count, with that count's source.
+titles; each venue-year links its proceedings (the official list) and says how many of its papers OpenAlex has.
 Text from the data is set with textContent, never as HTML."""
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ footer{margin-top:28px;font-size:13px;color:var(--muted)}footer a{color:var(--ac
 <body>
 <main>
 <h1>paper-<span>impact</span></h1>
-<p class="lead">Which papers at AI venues mattered: citations and field-normalized impact from OpenAlex, by venue and year.</p>
+<p class="lead">Which papers at AI venues mattered: every paper the proceedings list, with its citations and field-normalized impact from OpenAlex.</p>
 <div class="controls">
   <select id="venue" aria-label="Venue"></select>
   <select id="year" aria-label="Year"></select>
@@ -69,23 +69,20 @@ async function render() {
   const rows = $("rows"); rows.replaceChildren();
   papers.slice(0, 500).forEach((p, i) => {
     const tr = el("tr"); tr.append(el("td", String(i + 1)));
-    const td = el("td"); td.append(el("a", p.title, { href: p.doi || p.id, rel: "noopener" }));
+    const td = el("td"); td.append(el("a", p.title, { href: p.url || p.doi || p.id, rel: "noopener" }));
     if (p.top1) td.append(el("span", "top 1%", { class: "tag" })); else if (p.top10) td.append(el("span", "top 10%", { class: "tag" }));
     tr.append(td, el("td", String(p.year)), el("td", num(p.cited_by_count)), el("td", num(p.fwci, 1)), el("td", p.percentile === null ? "–" : (100 * p.percentile).toFixed(1)), el("td", num(p.recent)));
     rows.append(tr);
   });
   const note = $("note"); note.replaceChildren();
-  const parts = [papers.length > 500 ? `the first 500 of ${papers.length.toLocaleString("en-US")} papers` : `${papers.length.toLocaleString("en-US")} papers`];
+  const listed = vys.reduce((n, vy) => n + vy.listed, 0), matched = vys.reduce((n, vy) => n + vy.matched, 0);
+  const shown = papers.length > 500 ? `the first 500 of ${papers.length.toLocaleString("en-US")} papers` : `${papers.length.toLocaleString("en-US")} papers`;
   if (vys.length === 1) {
     const vy = vys[0];
-    parts.push(`OpenAlex lists ${vy.openalex_count.toLocaleString("en-US")} works for ${vy.venue} ${vy.year}`);
-    if (!vy.complete) parts.push(`only the ${vy.papers} most cited are here (built without an OpenAlex key)`);
-    note.append(el("span", parts.join("; ")));
-    if (vy.official_count) { note.append(el("span", `; the venue accepted ${vy.official_count.toLocaleString("en-US")} (`)); note.append(el("a", "source", { href: vy.official_source, rel: "noopener" })); note.append(el("span", `): coverage ${(100 * vy.coverage).toFixed(0)}%.`)); }
-    else note.append(el("span", "."));
+    note.append(el("span", `${shown}. The `), el("a", "proceedings", { href: vy.source, rel: "noopener" }),
+      el("span", ` of ${vy.venue} ${vy.year} list ${vy.listed.toLocaleString("en-US")}; ${vy.matched.toLocaleString("en-US")} (${(100 * (vy.coverage || 0)).toFixed(0)}%) were found in OpenAlex. Papers not found are listed without numbers.`));
   } else {
-    const partial = vys.filter((vy) => !vy.complete).length;
-    note.append(el("span", parts.join("; ") + (partial ? `; ${partial} of ${vys.length} years hold only their most cited papers.` : ".")));
+    note.append(el("span", `${shown}. The proceedings list ${listed.toLocaleString("en-US")}; ${matched.toLocaleString("en-US")} (${listed ? (100 * matched / listed).toFixed(0) : 0}%) were found in OpenAlex.`));
   }
 }
 async function start() {

@@ -1,0 +1,74 @@
+"""Proceedings titles to OpenAlex works: searched in batches (several titles ORed in one search, which costs as much as
+one), accepted only on an exact normalized title within a year of the venue's; of several such records (a preprint and
+the published paper, citations split between them) the most cited, the others kept as "also". Titles a batch does not
+settle (its answer was cut at a page) are searched alone; a title still unmatched stays unmatched and counted."""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from typing import Any
+
+from .openalex import FIELDS
+
+WORD = re.compile(r"[^\w]+")
+
+
+def normalize(title: str) -> str:
+    """A title as matching compares it: compatibility-folded, case-folded, punctuation and spacing as single spaces.
+
+    >>> normalize("Attention Is  All You Need!"), normalize("ﬁne-tuning: “BERT”"), normalize("Nesterov’s Priv'IT")
+    ('attention is all you need', 'fine tuning bert', 'nesterovs privit')
+    """
+    folded = unicodedata.normalize("NFKC", title).casefold()
+    folded = re.sub("['’ʼ`´]", "", folded)  # an apostrophe joins: "Nesterov’s" is one word, as OpenAlex may print it with ' or none
+    return " ".join(WORD.sub(" ", folded).split())
+
+
+@dataclass
+class Match:
+    title: str
+    work: dict[str, Any] | None = None  # the chosen OpenAlex work
+    also: list[str] = field(default_factory=list)  # other OpenAlex records of the same title and year (IDs)
+
+
+Searcher = Callable[[dict[str, str]], dict[str, Any]]  # params -> OpenAlex's answer
+
+
+def _query(norms: list[str], year: int) -> dict[str, str]:
+    # the phrases with punctuation removed: a comma or a | would cut the filter; exactness is checked here, not there
+    phrases = "|".join(f'"{n}"' for n in norms)
+    return {"filter": f"title.search:{phrases},publication_year:{year - 1}-{year + 1}", "per_page": "200", "select": FIELDS}
+
+
+def _pick(norm: str, works: Iterable[dict[str, Any]], year: int) -> Match:
+    same = [w for w in works if normalize(str(w.get("title") or "")) == norm and isinstance(w.get("publication_year"), int)
+            and abs(w["publication_year"] - year) <= 1]  # fmt: skip
+    if not same:
+        return Match(norm)
+    same.sort(key=lambda w: (-(w.get("cited_by_count") or 0), abs(w["publication_year"] - year), str(w.get("id"))))
+    return Match(norm, same[0], [str(w.get("id")) for w in same[1:]])
+
+
+def match(titles: list[str], year: int, search: Searcher, batch: int = 20) -> dict[str, Match]:
+    """Each title's match, by its normalized form. `search` runs one OpenAlex works search."""
+    norms = list(dict.fromkeys(n for n in (normalize(t) for t in titles) if n))
+    out: dict[str, Match] = {}
+    retry: list[str] = []
+    for i in range(0, len(norms), batch):
+        group = norms[i : i + batch]
+        answer = search(_query(group, year))
+        results = [w for w in answer.get("results") or [] if isinstance(w, dict)]
+        cut = int((answer.get("meta") or {}).get("count") or 0) > len(results)
+        for n in group:
+            m = _pick(n, results, year)
+            if m.work is None and cut:
+                retry.append(n)  # its record may be past the page
+            else:
+                out[n] = m
+    for n in retry:
+        answer = search(_query([n], year))
+        out[n] = _pick(n, (w for w in answer.get("results") or [] if isinstance(w, dict)), year)
+    return out

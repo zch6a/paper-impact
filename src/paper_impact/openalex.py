@@ -1,6 +1,6 @@
-"""OpenAlex, as far as the site needs it: a venue-year's works (the first page of the most cited without a key; every
-page with one), and a search for a venue's source IDs. The key, from ``OPENALEX_API_KEY``, goes in a header, never a
-URL; the User-Agent names the tool, not the user; waits and retries when told to."""
+"""OpenAlex, as far as the site needs it: title searches (to match proceedings titles), works by ID (to refresh their
+numbers), and the proceedings pages themselves. The key, from ``OPENALEX_API_KEY``, goes in a header to OpenAlex only,
+never in a URL; the User-Agent names the tool, not the user; waits and retries when told to."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any
 
 from . import __version__
@@ -60,8 +60,6 @@ class Client:
                 wait = response_headers.get("retry-after", "")
                 self._sleep(min(60.0, float(wait)) if wait.replace(".", "", 1).isdigit() else 2.0**attempt)
                 continue
-            if status == 401 and "cursor" in params:
-                raise OpenAlexError("OpenAlex needs a (free) API key to page past the first page: set OPENALEX_API_KEY, or use --top")
             if status != 200:
                 raise OpenAlexError(f"OpenAlex answered {status} for {url}: {body[:200].decode('utf-8', 'replace')}")
             try:
@@ -74,28 +72,33 @@ class Client:
         what = "could not be reached" if status == 0 else f"kept answering {status}"
         raise OpenAlexError(f"OpenAlex {what} for {url}; try later, or set OPENALEX_API_KEY")
 
-    def works(self, sources: list[str], year: int, top: int | None) -> tuple[int, Iterator[dict[str, Any]]]:
-        """(OpenAlex's count of the venue-year's works, the works, most cited first): `top` of them from the first page,
-        or every one (cursor paging, which needs a key) when `top` is None."""
-        ids = "|".join(s.rstrip("/").rsplit("/", 1)[-1] for s in sources)
-        params = {"filter": f"primary_location.source.id:{ids},publication_year:{year}", "sort": "cited_by_count:desc",
-                  "per_page": str(min(200, top) if top else 200), "select": FIELDS}  # fmt: skip
-        if top is None:
-            params["cursor"] = "*"
-        first = self.get("/works", params)
-        count = int((first.get("meta") or {}).get("count") or 0)
+    def search(self, params: dict[str, str]) -> dict[str, Any]:
+        """One works search (a title match)."""
+        return self.get("/works", params)
 
-        def pages() -> Iterator[dict[str, Any]]:
-            data = first
-            while True:
-                yield from (w for w in data.get("results") or [] if isinstance(w, dict))
-                cursor = (data.get("meta") or {}).get("next_cursor")
-                if top is not None or not cursor or not data.get("results"):
-                    return
-                data = self.get("/works", {**params, "cursor": cursor})
+    def by_ids(self, ids: list[str]) -> list[dict[str, Any]]:
+        """Works by OpenAlex ID, 100 to a list call (refreshing the numbers of works matched before)."""
+        out: list[dict[str, Any]] = []
+        shorts = [i.rstrip("/").rsplit("/", 1)[-1] for i in ids]
+        for k in range(0, len(shorts), 100):
+            group = shorts[k : k + 100]
+            data = self.get("/works", {"filter": "openalex:" + "|".join(group), "per_page": "100", "select": FIELDS})
+            out += [w for w in data.get("results") or [] if isinstance(w, dict)]
+        return out
 
-        return count, pages()
-
-    def sources(self, name: str) -> list[dict[str, Any]]:
-        data = self.get("/sources", {"search": name, "per_page": "10", "select": "id,display_name,type,works_count,host_organization_name"})
-        return [s for s in data.get("results") or [] if isinstance(s, dict)]
+    def page(self, url: str) -> str:
+        """A proceedings page (another site: no key is sent there)."""
+        if not url.startswith("https://"):
+            raise OpenAlexError(f"{url}: proceedings pages are fetched over https only")
+        for attempt in range(4):
+            if self.calls:
+                self._sleep(1.0)  # a person's pace on someone else's site
+            self.calls += 1
+            status, _, body = self._get(url, {"User-Agent": USER_AGENT, "Accept": "text/html"})
+            if status == 200:
+                return body.decode("utf-8", "replace")
+            if status in (0, 429) or status >= 500:
+                self._sleep(2.0**attempt)
+                continue
+            raise OpenAlexError(f"{url} answered {status}")
+        raise OpenAlexError(f"{url} could not be read; try later")

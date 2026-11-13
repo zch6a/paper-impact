@@ -62,3 +62,31 @@ Cost of a first build: NeurIPS and ICML since 2012 are about 40,000 papers, abou
 free key; refreshing them afterwards about 400 list calls, $0.04.
 
 Next: the proceedings parsers (NeurIPS, PMLR) on saved pages, the batched matcher with a fake transport, the cache.
+
+### 2026-11-13 — the proceedings, the matcher, the reuse; a first real measurement
+
+- `proceedings.py`: NeurIPS's year pages and PMLR volumes, with the standard library's HTML parser; titles and each
+  paper's page, nothing else. On the real pages: NeurIPS 2017 679 papers, ICML 2017 (PMLR 70) 434, the counts the
+  pages print. Tests use synthetic pages of the same shape.
+- `match.py`: titles normalized (compatibility-folded, case-folded, punctuation as spaces, apostrophes joined),
+  searched about 20 to a search as exact phrases with punctuation stripped from the query (a comma or a `|` would cut
+  OpenAlex's filter), within a year of the venue's; an exact normalized title only; the most cited record, the others
+  kept as `also`; a batch cut at its page has its unmatched titles searched alone.
+- The venue list now names each venue's proceedings pages (their list is the official one, and the page its source);
+  the source-based fetch is gone. A paper OpenAlex does not have stays listed, without numbers. The key goes to
+  OpenAlex only, never to the proceedings sites.
+- A rebuild reads the data already written: papers matched before are refreshed by ID (100 to a call) and only the
+  rest are searched.
+- **Measured on ICML 2017** (keyless): 434 papers, 417 matched (96%) in 23 requests; the most cited are the expected
+  ones (MAML 9,057, Wasserstein GAN 6,442, neural message passing 5,745). Curly apostrophes split words
+  ("Priv’IT", "Nesterov’s"); joined now. The rebuild took 7 requests and matched 418. Of the 16 left, "Deep IV: A
+  Flexible Approach for Counterfactual Prediction" is not in OpenAlex as that phrase at all (searched alone, no year:
+  0 results).
+
+The fetched pages and the trial site were in a temporary folder, deleted after.
+
+Tests: 14 (synthetic pages, a fake OpenAlex). ruff, mypy clean.
+
+Next: a looser second try for titles that miss (the title's words without the phrase, scored by overlap), the site's
+handling of unmatched papers, a first venue list (NeurIPS and ICML since 2012, their pages), README, CI, the deploy
+workflow.
