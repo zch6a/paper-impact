@@ -1,0 +1,204 @@
+{
+  "venues": [
+    {
+      "name": "NeurIPS",
+      "full": "Conference on Neural Information Processing Systems",
+      "proceedings": {
+        "kind": "neurips",
+        "pages": {
+          "2012": {
+            "url": "https://papers.nips.cc/paper_files/paper/2012",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2012"
+            ]
+          },
+          "2013": {
+            "url": "https://papers.nips.cc/paper_files/paper/2013",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2013"
+            ]
+          },
+          "2014": {
+            "url": "https://papers.nips.cc/paper_files/paper/2014",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2014"
+            ]
+          },
+          "2015": {
+            "url": "https://papers.nips.cc/paper_files/paper/2015",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2015"
+            ]
+          },
+          "2016": {
+            "url": "https://papers.nips.cc/paper_files/paper/2016",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2016"
+            ]
+          },
+          "2017": {
+            "url": "https://papers.nips.cc/paper_files/paper/2017",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2017"
+            ]
+          },
+          "2018": {
+            "url": "https://papers.nips.cc/paper_files/paper/2018",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2018"
+            ]
+          },
+          "2019": {
+            "url": "https://papers.nips.cc/paper_files/paper/2019",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2019"
+            ]
+          },
+          "2020": {
+            "url": "https://papers.nips.cc/paper_files/paper/2020",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2020"
+            ]
+          },
+          "2021": {
+            "url": "https://papers.nips.cc/paper_files/paper/2021",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2021"
+            ]
+          },
+          "2022": {
+            "url": "https://papers.nips.cc/paper_files/paper/2022",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2022"
+            ]
+          },
+          "2023": {
+            "url": "https://papers.nips.cc/paper_files/paper/2023",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2023"
+            ]
+          },
+          "2024": {
+            "url": "https://papers.nips.cc/paper_files/paper/2024",
+            "expect": [
+              "Neural Information Processing Systems",
+              "2024"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "ICML",
+      "full": "International Conference on Machine Learning",
+      "proceedings": {
+        "kind": "pmlr",
+        "pages": {
+          "2013": {
+            "url": "https://proceedings.mlr.press/v28/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2013"
+            ]
+          },
+          "2014": {
+            "url": "https://proceedings.mlr.press/v32/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2014"
+            ]
+          },
+          "2015": {
+            "url": "https://proceedings.mlr.press/v37/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2015"
+            ]
+          },
+          "2016": {
+            "url": "https://proceedings.mlr.press/v48/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2016"
+            ]
+          },
+          "2017": {
+            "url": "https://proceedings.mlr.press/v70/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2017"
+            ]
+          },
+          "2018": {
+            "url": "https://proceedings.mlr.press/v80/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2018"
+            ]
+          },
+          "2019": {
+            "url": "https://proceedings.mlr.press/v97/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2019"
+            ]
+          },
+          "2020": {
+            "url": "https://proceedings.mlr.press/v119/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2020"
+            ]
+          },
+          "2021": {
+            "url": "https://proceedings.mlr.press/v139/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2021"
+            ]
+          },
+          "2022": {
+            "url": "https://proceedings.mlr.press/v162/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2022"
+            ]
+          },
+          "2023": {
+            "url": "https://proceedings.mlr.press/v202/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2023"
+            ]
+          },
+          "2024": {
+            "url": "https://proceedings.mlr.press/v235/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2024"
+            ]
+          },
+          "2025": {
+            "url": "https://proceedings.mlr.press/v267/",
+            "expect": [
+              "International Conference on Machine Learning",
+              "2025"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

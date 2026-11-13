@@ -33,17 +33,27 @@ class _Neurips(_Parser):
         super().__init__(base)
         self._href: str | None = None
         self._text: list[str] = []
+        self._count: list[str] | None = None
+        self.declared: int | None = None  # the page's own "679 papers"
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         a = dict(attrs)
         if tag == "a" and a.get("title") == "paper title" and a.get("href"):
             self._href, self._text = a["href"], []
+        elif tag == "span" and "paper-count" in (a.get("class") or "").split():
+            self._count = []
 
     def handle_data(self, data: str) -> None:
         if self._href is not None:
             self._text.append(data)
+        if self._count is not None:
+            self._count.append(data)
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "span" and self._count is not None:
+            digits = "".join(c for c in "".join(self._count) if c.isdigit())
+            self.declared = int(digits) if digits else None
+            self._count = None
         if tag == "a" and self._href is not None:
             title = " ".join("".join(self._text).split())
             if title:
@@ -107,6 +117,9 @@ def parse(kind: str, page: str, base: str) -> list[Listed]:
     parser = PARSERS[kind](base)
     parser.feed(page)
     parser.close()
+    declared = getattr(parser, "declared", None)
+    if declared is not None and declared != len(parser.out):
+        raise ValueError(f"{base} says it lists {declared} papers, but {len(parser.out)} were read: has the page changed?")
     seen: set[str] = set()
     out = []
     for item in parser.out:

@@ -73,6 +73,20 @@ def test_the_parsers() -> None:
         parse("dblp", "", "")
 
 
+def test_a_neurips_page_that_disagrees_with_its_own_count_is_refused() -> None:
+    page = NEURIPS.replace('<ul class="paper-list">', '<span class="paper-count">5 papers</span><ul class="paper-list">')
+    with pytest.raises(ValueError, match="says it lists 5 papers, but 3 were read"):
+        parse("neurips", page, "https://papers.nips.cc/paper_files/paper/2017")
+    assert len(parse("neurips", page.replace("5 papers", "3 papers"), "https://papers.nips.cc/paper_files/paper/2017")) == 3
+
+
+def test_a_page_that_does_not_mention_its_venue_and_year_is_refused(tmp_path: Path) -> None:
+    venues = [Venue("ICML", "", "pmlr", {2017: "https://proceedings.mlr.press/v70/"}, {2017: ["International Conference on Machine Learning"]})]
+    web = FakeWeb({"https://proceedings.mlr.press/v70/": PMLR})
+    with pytest.raises(ValueError, match="does not mention 'International Conference on Machine Learning'"):
+        build(venues, range(2017, 2018), Client(key="", get=web, sleep=lambda _: None), 2026, tmp_path)
+
+
 def test_the_matcher_is_exact_and_takes_the_most_cited_record() -> None:
     web = FakeWeb({})
     c = Client(key="", get=web, sleep=lambda _: None)
@@ -81,7 +95,7 @@ def test_the_matcher_is_exact_and_takes_the_most_cited_record() -> None:
     assert s.work["id"] == "https://openalex.org/W1" and s.also == ["https://openalex.org/W2"]  # type: ignore[index]  # not W4: a longer title
     assert found[normalize("Calibrated Uncertainty, Revisited")].work["id"] == "https://openalex.org/W3"  # type: ignore[index]
     assert found[normalize("A Paper OpenAlex Lacks")].work is None
-    assert len(web.calls) == 1  # one search for the batch
+    assert len(web.calls) == 2 and "%22" not in web.calls[1][0]  # one search for the batch, one looser try (no phrase) for the miss
 
 
 def test_a_cut_batch_retries_its_unmatched_titles_alone() -> None:
@@ -95,6 +109,30 @@ def test_a_cut_batch_retries_its_unmatched_titles_alone() -> None:
     found = match(["Alpha", "Beta"], 2017, search)
     assert found["alpha"].work["id"] == "https://openalex.org/W1" and found["beta"].work["id"] == "https://openalex.org/W2"  # type: ignore[index]
     assert '"beta"' in calls[1]["filter"] and '"alpha"' not in calls[1]["filter"]
+
+
+def test_the_looser_try_accepts_nearly_the_same_words_and_says_so() -> None:
+    answers = [
+        {"meta": {"count": 0}, "results": []},  # the exact phrase: nothing
+        {
+            "meta": {"count": 2},
+            "results": [
+                work(7, "Stochastic Modified Equations and Adaptive Stochastic Gradient Algorithm", 50),  # plural lost
+                work(8, "Stochastic Equations for Adaptive Learning", 900),
+            ],
+        },  # fmt: skip
+        {"meta": {"count": 0}, "results": []},
+        {"meta": {"count": 1}, "results": [work(9, "Deep IV for Counterfactual Prediction", 300)]},  # too different
+    ]
+    found = match(["Stochastic Modified Equations and Adaptive Stochastic Gradient Algorithms"], 2017, lambda p: answers.pop(0))
+    m = found[normalize("Stochastic Modified Equations and Adaptive Stochastic Gradient Algorithms")]
+    assert m.how == "close" and m.work["id"] == "https://openalex.org/W7"  # type: ignore[index]
+    assert (
+        match(["Deep IV: A Flexible Approach for Counterfactual Prediction"], 2017, lambda p: answers.pop(0))[
+            normalize("Deep IV: A Flexible Approach for Counterfactual Prediction")
+        ].work
+        is None
+    )
 
 
 def test_punctuation_never_reaches_the_filter() -> None:

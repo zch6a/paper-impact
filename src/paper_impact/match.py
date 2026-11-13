@@ -1,7 +1,9 @@
 """Proceedings titles to OpenAlex works: searched in batches (several titles ORed in one search, which costs as much as
 one), accepted only on an exact normalized title within a year of the venue's; of several such records (a preprint and
 the published paper, citations split between them) the most cited, the others kept as "also". Titles a batch does not
-settle (its answer was cut at a page) are searched alone; a title still unmatched stays unmatched and counted."""
+settle (its answer was cut at a page) are searched alone; a title still unmatched gets one looser try (its words, not
+the phrase), accepted only when 85% of the words agree and the length is close, and marked "close"; after that it
+stays unmatched and counted."""
 
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ class Match:
     title: str
     work: dict[str, Any] | None = None  # the chosen OpenAlex work
     also: list[str] = field(default_factory=list)  # other OpenAlex records of the same title and year (IDs)
+    how: str = ""  # exact, close (the looser try), or "" when nothing matched
 
 
 Searcher = Callable[[dict[str, str]], dict[str, Any]]  # params -> OpenAlex's answer
@@ -49,10 +52,10 @@ def _pick(norm: str, works: Iterable[dict[str, Any]], year: int) -> Match:
     if not same:
         return Match(norm)
     same.sort(key=lambda w: (-(w.get("cited_by_count") or 0), abs(w["publication_year"] - year), str(w.get("id"))))
-    return Match(norm, same[0], [str(w.get("id")) for w in same[1:]])
+    return Match(norm, same[0], [str(w.get("id")) for w in same[1:]], how="exact")
 
 
-def match(titles: list[str], year: int, search: Searcher, batch: int = 20) -> dict[str, Match]:
+def match(titles: list[str], year: int, search: Searcher, batch: int = 20, close: bool = True) -> dict[str, Match]:
     """Each title's match, by its normalized form. `search` runs one OpenAlex works search."""
     norms = list(dict.fromkeys(n for n in (normalize(t) for t in titles) if n))
     out: dict[str, Match] = {}
@@ -71,4 +74,42 @@ def match(titles: list[str], year: int, search: Searcher, batch: int = 20) -> di
     for n in retry:
         answer = search(_query([n], year))
         out[n] = _pick(n, (w for w in answer.get("results") or [] if isinstance(w, dict)), year)
+    if close:
+        for n in [n for n, m in out.items() if m.work is None]:
+            answer = search({"filter": f"title.search:{n},publication_year:{year - 1}-{year + 1}", "per_page": "25", "select": FIELDS})
+            out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
     return out
+
+
+def similar(a: str, b: str) -> float:
+    """How alike two normalized titles are: the words they share over the words of either (Jaccard), 0 to 1, a trailing
+    plural "s" set aside ("algorithm" and "algorithms" are one word).
+
+    >>> similar("deep iv a flexible approach for counterfactual prediction", "deep iv a flexible approach to counterfactual prediction")
+    0.778
+    >>> similar("adaptive gradient algorithms", "adaptive gradient algorithm")
+    1.0
+    """
+    x, y = {_stem(w) for w in a.split()}, {_stem(w) for w in b.split()}
+    return round(len(x & y) / len(x | y), 3) if x | y else 0.0
+
+
+def _stem(word: str) -> str:
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
+
+
+def _close(norm: str, works: list[dict[str, Any]], year: int) -> Match:
+    """The looser try's pick: a title sharing at least 85% of the words (a hyphen, a plural, a dropped article), of a
+    length within 15%, in the year window; the most alike, then the most cited."""
+    good = []
+    for w in works:
+        other = normalize(str(w.get("title") or ""))
+        y = w.get("publication_year")
+        if not other or not isinstance(y, int) or abs(y - year) > 1:
+            continue
+        if similar(norm, other) >= 0.85 and abs(len(other) - len(norm)) <= 0.15 * len(norm):
+            good.append((similar(norm, other), w.get("cited_by_count") or 0, w))
+    if not good:
+        return Match(norm)
+    good.sort(key=lambda t: (-t[0], -t[1]))
+    return Match(norm, good[0][2], [str(t[2].get("id")) for t in good[1:]], how="close")

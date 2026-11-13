@@ -90,3 +90,22 @@ Tests: 14 (synthetic pages, a fake OpenAlex). ruff, mypy clean.
 Next: a looser second try for titles that miss (the title's words without the phrase, scored by overlap), the site's
 handling of unmatched papers, a first venue list (NeurIPS and ICML since 2012, their pages), README, CI, the deploy
 workflow.
+
+### 2026-11-13 — a looser second try; the first venue list, every page checked
+
+- **The looser try**: a title the exact search misses is searched once more by its words (no phrase), and a record is
+  taken only when 85% of the words agree (a trailing plural "s" set aside), the length is within 15% and the year
+  within one; the paper is marked `how: "close"`, an exact one `"exact"`, an unmatched one nothing.
+- **Page checks**: a venue's page may name the text it must contain (the venue and the year); a page that does not
+  is refused with the reason, so a wrong PMLR volume number cannot bring in another conference. A NeurIPS page that
+  states its own count ("679 papers") must agree with what was read.
+- **`venues.json`**: NeurIPS 2012–2024 (papers.nips.cc) and ICML 2013–2025 (PMLR volumes 28 … 267; ICML 2012 is not in
+  PMLR). Every page fetched once, a second apart (no OpenAlex calls): all mention their venue and year; 34,673 papers
+  in all, NeurIPS growing from 370 (2012) to 4,493 (2024), ICML from 283 (2013) to 3,330 (2025).
+- **NeurIPS 2025** listed 64 papers: its page, under the heading "Creative AI", says "64 papers": only that track is
+  up so far. Left out of the list until the main track is posted (listing it as "NeurIPS 2025" would mislead).
+
+Tests: 18. ruff, mypy clean.
+
+Next: README (English, Chinese), the site's look on the ICML 2017 build, CI, the scheduled build-and-deploy workflow
+(the build job read-only; the Pages deploy runs no project code), the public repository; then a first full build.

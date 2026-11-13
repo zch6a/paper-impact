@@ -25,6 +25,7 @@ class Venue:
     full: str = ""
     kind: str = ""  # the proceedings parser: neurips, pmlr
     pages: dict[int, str] = field(default_factory=dict)  # year -> its proceedings page
+    expect: dict[int, list[str]] = field(default_factory=dict)  # year -> text the page must contain (a wrong volume fails)
 
     @property
     def slug(self) -> str:
@@ -32,7 +33,9 @@ class Venue:
 
 
 def read_venues(path: Path) -> list[Venue]:
-    """The venue list: JSON, ``{"venues": [{"name", "full", "proceedings": {"kind": "neurips", "pages": {"2017": url}}}]}``."""
+    """The venue list: JSON, ``{"venues": [{"name", "full", "proceedings": {"kind": "pmlr", "pages": {"2017": url or
+    {"url": url, "expect": ["International Conference on Machine Learning", "2017"]}}}}]}``: a page may name the text
+    it must contain, so that a wrong volume number fails instead of bringing in another conference."""
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as e:
@@ -45,14 +48,18 @@ def read_venues(path: Path) -> list[Venue]:
         proc: dict[str, Any] = raw if isinstance(raw, dict) else {}
         if proc.get("kind") not in PARSERS:
             raise ValueError(f"{path.as_posix()}: {v['name']}: proceedings kind must be one of {', '.join(PARSERS)}")
-        pages = {}
-        for year, url in (proc.get("pages") or {}).items():
+        pages, expect = {}, {}
+        for year, entry in (proc.get("pages") or {}).items():
+            url = entry.get("url") if isinstance(entry, dict) else entry
+            wanted = entry.get("expect", []) if isinstance(entry, dict) else []
             if not str(year).isdigit() or not isinstance(url, str) or not url.startswith("https://"):
                 raise ValueError(f"{path.as_posix()}: {v['name']} {year}: a proceedings page is a year and an https link")
-            pages[int(year)] = url
+            if not isinstance(wanted, list) or not all(isinstance(x, str) and x for x in wanted):
+                raise ValueError(f"{path.as_posix()}: {v['name']} {year}: expect is a list of texts")
+            pages[int(year)], expect[int(year)] = url, wanted
         if not pages:
             raise ValueError(f"{path.as_posix()}: {v['name']}: no proceedings pages")
-        venues.append(Venue(v["name"].strip(), str(v.get("full") or ""), proc["kind"], pages))
+        venues.append(Venue(v["name"].strip(), str(v.get("full") or ""), proc["kind"], pages, expect))
     if not venues:
         raise ValueError(f"{path.as_posix()}: no venues")
     if len({v.slug for v in venues}) != len(venues):
@@ -72,7 +79,11 @@ def read_previous(out: Path, venue: Venue, year: int) -> dict[str, Paper]:
 
 def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, previous: dict[str, Paper]) -> VenueYear:
     url = venue.pages[year]
-    listed = parse(venue.kind, client.page(url), url)
+    page = client.page(url)
+    missing = [x for x in venue.expect.get(year, []) if x not in page]
+    if missing:
+        raise ValueError(f"{url} does not mention {', '.join(repr(x) for x in missing)}: is it {venue.name} {year}'s proceedings?")
+    listed = parse(venue.kind, page, url)
     papers = [Paper(item.title, year, item.url) for item in listed]
     known = {normalize(p.title): previous[normalize(p.title)] for p in papers if normalize(p.title) in previous and previous[normalize(p.title)].id}
     fresh = {w.get("id"): w for w in client.by_ids([p.id for p in known.values()])} if known else {}
@@ -84,7 +95,7 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
         if n in known and known[n].id in fresh:
             out.append(p.with_work(fresh[known[n].id], as_of_year, known[n].also))
         elif n in found and found[n].work is not None:
-            out.append(p.with_work(found[n].work, as_of_year, found[n].also))  # type: ignore[arg-type]
+            out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
         else:
             out.append(p)
     return VenueYear(venue.name, year, url, out)

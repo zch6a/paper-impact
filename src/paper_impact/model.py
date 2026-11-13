@@ -24,8 +24,9 @@ class Paper:
     recent: int | None = None  # citations in the last two complete years, a speed
     doi: str = ""
     also: list[str] = field(default_factory=list)  # other OpenAlex records of the same paper (a preprint), not added in
+    how: str = ""  # how it was matched: exact, close (nearly the same words), or "" when unmatched
 
-    def with_work(self, w: dict[str, Any], as_of_year: int, also: list[str] | None = None) -> Paper:
+    def with_work(self, w: dict[str, Any], as_of_year: int, also: list[str] | None = None, how: str | None = None) -> Paper:
         """The paper with an OpenAlex work's numbers.
 
         >>> p = Paper("T", 2017).with_work({"id": "https://openalex.org/W1", "cited_by_count": 9, "fwci": 2.5,
@@ -54,6 +55,7 @@ class Paper:
             recent=recent,
             doi=str(w.get("doi") or ""),
             also=list(also if also is not None else self.also),
+            how=how if how is not None else (self.how or "exact"),
         )
 
 
