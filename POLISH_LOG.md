@@ -197,3 +197,27 @@ the looser tries cost.
 Tests: 30 (were 19). ruff, mypy clean.
 
 Next: round 2.
+
+### 2026-11-13 — polishing round 2: two more venues, two passes, the real pace
+
+Round 1's CI was green; its page went live with the next site run (26 venue-years, 903 papers matched, 134 requests).
+
+- **The real pace.** The second run matched only 254 more papers. The README promised about 2,000 a run: wrong. A
+  keyless run gets the runner's shared $0.10 (others on that address spend it too), and every miss spent a whole
+  search on its looser try. So matching is now **two passes**: exact titles, batched, for every venue-year first;
+  then the looser tries, one search each, with whatever budget is left. A paper whose exact search missed is marked
+  (`tried: "exact:<date>"`) and goes straight to its looser try next time instead of back into the batches; after
+  the looser try it waits 30 days. The README states the measured pace: months without a key, weeks at most with one.
+- **CVPR** (CVF open access, 2013–2025) and **ACL** (Anthology, long papers 2013–2025; 2020's main volume): two
+  parsers (`cvf`: `dt.ptitle > a`; `acl`: `strong > a.align-middle`, the volume's own entry skipped), tested on
+  synthetic pages. Every page checked once (no OpenAlex calls): ACL from 175 (2013) to 1,602 (2025); CVPR from 471
+  (2013) to 2,871 (2025).
+- **CVPR 2018–2020 read 0 papers**: those years list their papers by day (`CVPR2019.py?day=2019-06-18` …) and the
+  `?day=all` page is empty. A venue-year may now name several listing pages (`lists`), its `url` staying the page a
+  reader is sent to; read that way: 979, 1,294, 1,466. And a venue-year whose pages list no papers is refused
+  ("lists no papers") instead of published empty.
+- In all, venues.json lists 60,234 papers: NeurIPS and ICML 34,609, CVPR 18,452, ACL 7,173.
+
+Tests: 32 (were 30). ruff, mypy clean.
+
+Next: round 3.

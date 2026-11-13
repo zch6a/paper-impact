@@ -224,3 +224,39 @@ def test_an_exhausted_budget_keeps_what_was_found_and_the_next_build_carries_on(
     c = Client(key="", get=Spent(pages), sleep=lambda _: None)
     vys, _ = build(venues, range(2017, 2018), c, 2026, tmp_path)
     assert vys[0].matched == 2 and vys[0].papers[0].cited_by_count == 500  # spent again: the last numbers stand
+
+
+CVF = """<dl><dt class="ptitle"><br><a href="/content/CVPR2023/html/A_Paper_CVPR_2023_paper.html">A Vision Paper</a></dt><dd>authors</dd>
+<dt class="ptitle"><br><a href="/content/CVPR2023/html/B_CVPR_2023_paper.html">Another One: With <i>Style</i></a></dt></dl><a href="/x">menu</a>"""
+ACL = """<p><strong><a class=align-middle href=/2023.acl-long.0/>Proceedings of the 61st Annual Meeting</a></strong></p>
+<p><strong><a class=align-middle href=/2023.acl-long.1/>One Cannot Stand for Everyone! <span class=acl-fixed-case>L</span>everaging Data</a></strong>
+<br><a href=/people/x/>An Author</a></p>
+<p><strong><a class=align-middle href=/2023.acl-long.2/>Second Paper</a></strong></p>"""
+
+
+def test_the_cvf_and_acl_parsers() -> None:
+    cvf = parse("cvf", CVF, "https://openaccess.thecvf.com/CVPR2023?day=all")
+    assert [(p.title, p.url) for p in cvf] == [("A Vision Paper", "https://openaccess.thecvf.com/content/CVPR2023/html/A_Paper_CVPR_2023_paper.html"),
+                                               ("Another One: With Style",
+                                                "https://openaccess.thecvf.com/content/CVPR2023/html/B_CVPR_2023_paper.html")]  # fmt: skip
+    acl = parse("acl", ACL, "https://aclanthology.org/volumes/2023.acl-long/")
+    assert [(p.title, p.url) for p in acl] == [("One Cannot Stand for Everyone! Leveraging Data", "https://aclanthology.org/2023.acl-long.1/"),
+                                               ("Second Paper", "https://aclanthology.org/2023.acl-long.2/")]  # fmt: skip
+
+
+def test_a_venue_year_listed_over_several_pages_and_an_empty_one(tmp_path: Path) -> None:
+    day1 = CVF
+    day2 = CVF.replace("A Vision Paper", "A Third Paper").replace("A_Paper", "C_Paper").replace("B_CVPR", "B_CVPR")  # one new, one repeated
+    venue = Venue("CVPR", "", "cvf", {2019: "https://openaccess.thecvf.com/CVPR2019"}, {2019: ["CVPR2019"]},
+                  {2019: ["https://openaccess.thecvf.com/CVPR2019.py?day=1", "https://openaccess.thecvf.com/CVPR2019.py?day=2"]})  # fmt: skip
+    pages = {"https://openaccess.thecvf.com/CVPR2019.py?day=1": day1.replace("CVPR2023", "CVPR2019"),
+             "https://openaccess.thecvf.com/CVPR2019.py?day=2": day2.replace("CVPR2023", "CVPR2019")}  # fmt: skip
+    vys, failures = build([venue], range(2019, 2020), Client(key="", get=FakeWeb(pages), sleep=lambda _: None), 2026, tmp_path)
+    assert not failures and [p.title for p in vys[0].papers] == ["A Vision Paper", "Another One: With Style", "A Third Paper"]
+    assert vys[0].source == "https://openaccess.thecvf.com/CVPR2019"
+    empty = {
+        "https://openaccess.thecvf.com/CVPR2019.py?day=1": "<p>CVPR2019</p>",
+        "https://openaccess.thecvf.com/CVPR2019.py?day=2": "<p>CVPR2019</p>",
+    }
+    vys, failures = build([venue], range(2019, 2020), Client(key="", get=FakeWeb(empty), sleep=lambda _: None), 2026, tmp_path / "x")
+    assert vys == [] and "lists no papers" in failures[0].reason

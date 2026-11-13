@@ -2,7 +2,7 @@
 
 # paper-impact
 
-**Which papers at AI venues mattered: every paper NeurIPS and ICML published, with its citations and field-normalized
+**Which papers at AI venues mattered: every paper NeurIPS, ICML, CVPR and ACL published, with its citations and field-normalized
 impact, by year.** The paper lists come from each venue's own proceedings; the numbers from
 [OpenAlex](https://openalex.org) (open, CC0). Open JSON and a static site, rebuilt daily.
 
@@ -43,7 +43,8 @@ not found are listed without numbers. The data is public: `data/index.json` and 
 uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.json -o site/ --years 2015-2024
 ```
 
-[venues.json](venues.json) lists NeurIPS 2012–2024 and ICML 2013–2025 by their proceedings pages; each page names the
+[venues.json](venues.json) lists NeurIPS 2012–2024, ICML 2013–2025 (PMLR), CVPR 2013–2025 (CVF open access) and ACL
+2013–2025 (long papers; 2020's main volume) by their proceedings pages, 60,234 papers; each page names the
 text it must contain (the venue, the year), so a wrong volume fails instead of bringing in another conference.
 
 - **Matching**: titles are searched in OpenAlex about 20 to a search, accepted only on the exact title (normalized)
@@ -59,7 +60,10 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
   same title in one venue-year are both listed, neither matched (one record cannot be told apart for two papers);
   so are very short titles with many namesakes ("Introduction").
 - **The daily build** ([site.yml](.github/workflows/site.yml)): the build job runs with a read-only token and keeps
-  its data in the Actions cache; the deploy job only publishes to Pages. Without a key each run matches about 2,000 papers, so the site fills over two or three weeks; an `OPENALEX_API_KEY` secret makes it a few days.
+  its data in the Actions cache; the deploy job only publishes to Pages. Each run searches exact titles first, in
+  batches, for every venue-year, and spends what budget is left on the looser tries. Without a key the budget is the
+  runner's shared $0.10, and the first runs matched about 250 to 650 papers each, so the site fills over months; an
+  `OPENALEX_API_KEY` secret (1,000 searches a day, about 20,000 titles) makes it weeks at most.
 
 ## What the numbers are
 

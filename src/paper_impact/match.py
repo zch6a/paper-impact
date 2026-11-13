@@ -94,6 +94,18 @@ def _match(titles: list[str], year: int, search: Searcher, batch: int, close: bo
             out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
 
 
+def close_match(titles: list[str], year: int, search: Searcher) -> dict[str, Match]:
+    """The looser try alone, one search a title (for titles whose exact search missed in an earlier pass). Titles left
+    out of the answer were not tried (OpenAlex's budget ran out)."""
+    out: dict[str, Match] = {}
+    with contextlib.suppress(BudgetExhausted):
+        for n in dict.fromkeys(normalize(t) for t in titles):
+            if n:
+                answer = search({"filter": f"title.search:{n},publication_year:{year - 1}-{year + 1}", "per_page": "25", "select": FIELDS})
+                out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
+    return out
+
+
 def similar(a: str, b: str) -> float:
     """How alike two normalized titles are: the words they share over the words of either (Jaccard), 0 to 1, a trailing
     plural "s" set aside ("algorithm" and "algorithms" are one word).

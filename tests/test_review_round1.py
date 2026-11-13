@@ -24,17 +24,24 @@ def client(web: FakeWeb) -> Client:
     return Client(key="", get=web, sleep=lambda _: None)
 
 
-def test_a_miss_is_not_searched_again_for_weeks() -> None:
+def test_a_miss_waits_for_its_looser_try_then_for_weeks() -> None:
+    from paper_impact.build import _close_pass
+
     web = FakeWeb({URL: NEURIPS})
-    first = build_venue_year(VENUE, 2017, client(web), 2026, [], today=dt.date(2026, 11, 1))
-    lacks = first.papers[2]
-    assert lacks.id == "" and lacks.tried == "2026-11-01"
+    vy = build_venue_year(VENUE, 2017, client(web), 2026, [], today=dt.date(2026, 11, 1))
+    assert vy.papers[2].id == "" and vy.papers[2].tried == "exact:2026-11-01"  # the exact pass missed it
     web2 = FakeWeb({URL: NEURIPS})
-    build_venue_year(VENUE, 2017, client(web2), 2026, first.papers, today=dt.date(2026, 11, 15))
-    assert not any("title.search" in u for u, _ in web2.calls)  # two weeks later: not again
+    again = build_venue_year(VENUE, 2017, client(web2), 2026, vy.papers, today=dt.date(2026, 11, 2))
+    assert not any("title.search" in u for u, _ in web2.calls) and again.papers[2].tried == "exact:2026-11-01"  # not exact-searched again
+    c = client(FakeWeb({}))
+    _close_pass([again], c, 2026, today=dt.date(2026, 11, 2))
+    assert again.papers[2].tried == "2026-11-02" and c.calls == 1  # its looser try, once
     web3 = FakeWeb({URL: NEURIPS})
-    later = build_venue_year(VENUE, 2017, client(web3), 2026, first.papers, today=dt.date(2026, 12, 5))
-    assert any("lacks" in u for u, _ in web3.calls) and later.papers[2].tried == "2026-12-05"  # a month later: once more
+    build_venue_year(VENUE, 2017, client(web3), 2026, again.papers, today=dt.date(2026, 11, 20))
+    assert not any("title.search" in u for u, _ in web3.calls)  # weeks later: still waiting
+    web4 = FakeWeb({URL: NEURIPS})
+    later = build_venue_year(VENUE, 2017, client(web4), 2026, again.papers, today=dt.date(2026, 12, 5))
+    assert any("lacks" in u for u, _ in web4.calls) and later.papers[2].tried == "exact:2026-12-05"  # a month on: once more
 
 
 def test_a_close_match_stays_close_on_refresh() -> None:

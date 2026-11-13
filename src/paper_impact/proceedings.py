@@ -5,6 +5,10 @@ paper's page (no abstracts, no PDFs).
 - ``neurips``: papers.nips.cc's page for a year: ``<a title="paper title" href=...>Title</a>`` in the paper list.
 - ``pmlr``: a Proceedings of Machine Learning Research volume (ICML and others): ``<div class="paper"><p class="title">``
   with the abstract page as the first link of ``<p class="links">``.
+- ``cvf``: the Computer Vision Foundation's open access page of a conference (CVPR, ICCV, WACV), all days:
+  ``<dt class="ptitle"><a href=...>Title</a></dt>``.
+- ``acl``: an ACL Anthology volume page: each paper is ``<strong><a class="align-middle" href=...>Title</a></strong>``;
+  the volume's own entry (its front matter, ``….0/``) is not a paper.
 """
 
 from __future__ import annotations
@@ -101,7 +105,48 @@ class _Pmlr(_Parser):
             self._in_paper = False
 
 
-PARSERS: dict[str, type[_Parser]] = {"neurips": _Neurips, "pmlr": _Pmlr}
+class _Linked(_Parser):
+    """A paper is the text of a link inside an element that marks it (``dt.ptitle``, ``strong``)."""
+
+    def __init__(self, base: str, holder: str, holder_class: str, link_class: str, skip: str) -> None:
+        super().__init__(base)
+        self._holder, self._holder_class, self._link_class, self._skip = holder, holder_class, link_class, skip
+        self._inside = False
+        self._href: str | None = None
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        a = dict(attrs)
+        if tag == self._holder and (not self._holder_class or self._holder_class in (a.get("class") or "").split()):
+            self._inside = True
+        elif tag == "a" and self._inside and a.get("href") and (not self._link_class or self._link_class in (a.get("class") or "").split()):
+            self._href, self._text = a["href"], []
+
+    def handle_data(self, data: str) -> None:
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._href is not None:
+            title = " ".join("".join(self._text).split())
+            if title and not (self._skip and self._href.rstrip("/").endswith(self._skip)):
+                self.out.append(Listed(title, urllib.parse.urljoin(self.base, self._href)))
+            self._href = None
+        elif tag == self._holder:
+            self._inside = False
+
+
+class _Cvf(_Linked):
+    def __init__(self, base: str) -> None:
+        super().__init__(base, "dt", "ptitle", "", "")
+
+
+class _Acl(_Linked):
+    def __init__(self, base: str) -> None:
+        super().__init__(base, "strong", "", "align-middle", ".0")
+
+
+PARSERS: dict[str, type[_Parser]] = {"neurips": _Neurips, "pmlr": _Pmlr, "cvf": _Cvf, "acl": _Acl}
 
 
 def parse(kind: str, page: str, base: str) -> list[Listed]:

@@ -2,7 +2,7 @@
 
 # paper-impact
 
-**AI 会议里哪些论文真正有影响：NeurIPS 与 ICML 历年发表的每一篇论文，连同它的被引数和领域归一化影响力。** 论文清单来自各会议自己的论文集，
+**AI 会议里哪些论文真正有影响：NeurIPS、ICML、CVPR 与 ACL 历年发表的每一篇论文，连同它的被引数和领域归一化影响力。** 论文清单来自各会议自己的论文集，
 数字来自 [OpenAlex](https://openalex.org)（开放数据，CC0）。公开 JSON 加静态网站，每天重建。
 
 <a href="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zch6a/paper-impact/actions/workflows/ci.yml/badge.svg"></a>
@@ -39,7 +39,7 @@ ICML 2017 的实际构建结果（论文集共 434 篇）：
 uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.json -o site/ --years 2015-2024
 ```
 
-[venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024 和 ICML 2013–2025；每个页面都写明它必须包含的文字（会议名、年份），
+[venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024、ICML 2013–2025（PMLR）、CVPR 2013–2025（CVF open access）和 ACL 2013–2025（长文；2020 年为主卷），共 60234 篇；每个页面都写明它必须包含的文字（会议名、年份），
 卷号写错时会直接报错，而不是悄悄混进另一个会议。
 
 - **匹配**：标题在 OpenAlex 里每次约 20 个一起搜索，只接受规范化后完全相同、年份相差不超过一年的记录；没命中的再宽松地试一次
@@ -47,7 +47,7 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
 - **费用**：每次搜索花 OpenAlex 额度 0.001 美元：一个 1000 篇的会议年份约 50 次搜索，加上每篇未命中的宽松重试一次（共 0.05 到 0.15 美元）。搜过但没找到的论文 30 天后才会再搜。不设 `OPENALEX_API_KEY` 时每天 0.10 美元额度，
   同一 IP 下所有人共享；免费 key 每天 1 美元。重建时复用 `site/` 里已有的数据：只搜索还没找到的论文，其余按 ID 刷新（每次请求 100 篇，0.0001 美元）；OpenAlex 不再返回其 ID 的论文会重新搜索。某个会议年份的页面出错时（页面变了、网站宕机）保留它上次的数据并报告，其余照常构建。同一会议年份里标题相同的两篇论文都会列出，但都不匹配（一条记录分不清是哪一篇）；很短且同名作品很多的标题（如 “Introduction”）也一样。
 - **每日构建**（[site.yml](.github/workflows/site.yml)）：构建任务用只读权限运行，数据存在 Actions 缓存里；部署任务只负责发布到 Pages。
-  不带 key 时每次运行约匹配 2000 篇，网站两三周填满；在仓库里加一个 `OPENALEX_API_KEY` secret 可缩短到几天。
+  每次运行先对所有会议年份分批做精确标题搜索，剩下的额度再做宽松重试。不带 key 时用的是 runner 共享的 0.10 美元额度，最初几次运行每次只匹配约 250 到 650 篇，网站要几个月才能填满；在仓库里加一个 `OPENALEX_API_KEY` secret（每天 1000 次搜索、约 2 万个标题）最多几周。
 
 ## 这些数字是什么
 

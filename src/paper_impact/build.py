@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .match import match, normalize
+from .match import close_match, match, normalize
 from .model import Paper, VenueYear
 from .openalex import BudgetExhausted, Client, KeyRejected, OpenAlexError
 from .proceedings import PARSERS, parse
@@ -28,6 +28,7 @@ class Venue:
     kind: str = ""  # the proceedings parser: neurips, pmlr
     pages: dict[int, str] = field(default_factory=dict)  # year -> its proceedings page
     expect: dict[int, list[str]] = field(default_factory=dict)  # year -> text the page must contain (a wrong volume fails)
+    lists: dict[int, list[str]] = field(default_factory=dict)  # year -> the pages that list the papers, when not the page itself
 
     @property
     def slug(self) -> str:
@@ -50,18 +51,23 @@ def read_venues(path: Path) -> list[Venue]:
         proc: dict[str, Any] = raw if isinstance(raw, dict) else {}
         if proc.get("kind") not in PARSERS:
             raise ValueError(f"{path.as_posix()}: {v['name']}: proceedings kind must be one of {', '.join(PARSERS)}")
-        pages, expect = {}, {}
+        pages, expect, lists = {}, {}, {}
         for year, entry in (proc.get("pages") or {}).items():
             url = entry.get("url") if isinstance(entry, dict) else entry
             wanted = entry.get("expect", []) if isinstance(entry, dict) else []
+            more = entry.get("lists", []) if isinstance(entry, dict) else []
+            if not isinstance(more, list) or not all(isinstance(x, str) and x.startswith("https://") for x in more):
+                raise ValueError(f"{path.as_posix()}: {v['name']} {year}: lists is a list of https links (pages that list the papers)")
             if not str(year).isdigit() or not isinstance(url, str) or not url.startswith("https://"):
                 raise ValueError(f"{path.as_posix()}: {v['name']} {year}: a proceedings page is a year and an https link")
             if not isinstance(wanted, list) or not all(isinstance(x, str) and x for x in wanted):
                 raise ValueError(f"{path.as_posix()}: {v['name']} {year}: expect is a list of texts")
             pages[int(year)], expect[int(year)] = url, wanted
+            if more:
+                lists[int(year)] = more
         if not pages:
             raise ValueError(f"{path.as_posix()}: {v['name']}: no proceedings pages")
-        venues.append(Venue(v["name"].strip(), str(v.get("full") or ""), proc["kind"], pages, expect))
+        venues.append(Venue(v["name"].strip(), str(v.get("full") or ""), proc["kind"], pages, expect, lists))
     if not venues:
         raise ValueError(f"{path.as_posix()}: no venues")
     if len({v.slug for v in venues}) != len(venues):
@@ -70,6 +76,7 @@ def read_venues(path: Path) -> list[Venue]:
 
 
 RETRY_DAYS = 30  # a paper searched for in vain is searched again after this many days, not every build
+EXACT_MISSED = "exact:"  # tried = "exact:2026-11-13": its exact search missed; its looser try is still to come
 
 
 def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper]]:
@@ -83,6 +90,8 @@ def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper]]
 
 
 def _due(tried: str, today: dt.date) -> bool:
+    if tried.startswith(EXACT_MISSED):
+        return False  # waiting for its looser try, not for another exact search
     try:
         return (today - dt.date.fromisoformat(tried)).days >= RETRY_DAYS
     except ValueError:
@@ -95,11 +104,18 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
     that share a title within the venue-year left unmatched (one record cannot be told apart for two papers)."""
     today = today or dt.date.today()
     url = venue.pages[year]
-    page = client.page(url)
-    missing = [x for x in venue.expect.get(year, []) if x not in page]
-    if missing:
-        raise ValueError(f"{url} does not mention {', '.join(repr(x) for x in missing)}: is it {venue.name} {year}'s proceedings?")
-    papers = [Paper(item.title, year, item.url) for item in parse(venue.kind, page, url)]
+    papers, seen = [], set()
+    for listing in venue.lists.get(year) or [url]:  # a conference may list its papers over several pages (one a day)
+        page = client.page(listing)
+        missing = [x for x in venue.expect.get(year, []) if x not in page]
+        if missing:
+            raise ValueError(f"{listing} does not mention {', '.join(repr(x) for x in missing)}: is it {venue.name} {year}'s proceedings?")
+        for item in parse(venue.kind, page, listing):
+            if (item.url or item.title) not in seen:
+                seen.add(item.url or item.title)
+                papers.append(Paper(item.title, year, item.url))
+    if not papers:
+        raise ValueError(f"{url} lists no papers: has the page changed?")
     norm = {id(p): normalize(p.title) for p in papers}
     counts = Counter(norm.values())
     by_url = {q.url: q for q in previous if q.url}
@@ -120,7 +136,7 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
         return id(p) not in known and counts[norm[id(p)]] == 1 and bool(norm[id(p)]) and (q is None or not q.tried or _due(q.tried, today))
 
     to_search = [p.title for p in papers if wanted(p)]
-    found = match(to_search, year, client.search) if to_search and not client.exhausted else {}
+    found = match(to_search, year, client.search, close=False) if to_search and not client.exhausted else {}
     out = []
     for p in papers:
         n, q = norm[id(p)], before[id(p)]
@@ -133,7 +149,7 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
         elif n in found and found[n].work is not None and wanted(p):
             out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
         elif n in found and wanted(p):
-            out.append(Paper(p.title, year, p.url, tried=today.isoformat()))  # searched in vain today
+            out.append(Paper(p.title, year, p.url, tried=EXACT_MISSED + today.isoformat()))  # the exact search missed today
         else:
             out.append(Paper(p.title, year, p.url, tried=q.tried if q is not None and not q.id else ""))
     return VenueYear(venue.name, year, url, out)
@@ -166,7 +182,28 @@ def build(venues: list[Venue], years: range, client: Client, as_of_year: int, ou
                 failures.append(Failure(v.name, y, str(e)))
                 if previous:
                     built.append(VenueYear(v.name, y, source or v.pages[y], previous))
+    if not client.exhausted:
+        _close_pass([vy for vy in built if vy.year in years], client, as_of_year)
     return built, failures
+
+
+def _close_pass(venue_years: list[VenueYear], client: Client, as_of_year: int, today: dt.date | None = None) -> None:
+    """The looser try for every paper whose exact search missed, with the budget the exact searches left: a paper
+    still unmatched after it is marked as tried today (and searched again only after RETRY_DAYS); one the budget
+    did not reach keeps waiting."""
+    today = today or dt.date.today()
+    for vy in venue_years:
+        waiting = [p for p in vy.papers if not p.id and p.tried.startswith(EXACT_MISSED)]
+        if not waiting or client.exhausted:
+            continue
+        found = close_match([p.title for p in waiting], vy.year, client.search)
+        for i, p in enumerate(vy.papers):
+            n = normalize(p.title)
+            if p in waiting and n in found:
+                m = found[n]
+                vy.papers[i] = (
+                    p.with_work(m.work, as_of_year, m.also, m.how) if m.work is not None else Paper(p.title, p.year, p.url, tried=today.isoformat())
+                )
 
 
 def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], generated: str) -> list[Path]:

@@ -199,6 +199,208 @@
           }
         }
       }
+    },
+    {
+      "name": "CVPR",
+      "full": "Conference on Computer Vision and Pattern Recognition",
+      "proceedings": {
+        "kind": "cvf",
+        "pages": {
+          "2013": {
+            "url": "https://openaccess.thecvf.com/CVPR2013?day=all",
+            "expect": [
+              "CVPR2013"
+            ]
+          },
+          "2014": {
+            "url": "https://openaccess.thecvf.com/CVPR2014?day=all",
+            "expect": [
+              "CVPR2014"
+            ]
+          },
+          "2015": {
+            "url": "https://openaccess.thecvf.com/CVPR2015?day=all",
+            "expect": [
+              "CVPR2015"
+            ]
+          },
+          "2016": {
+            "url": "https://openaccess.thecvf.com/CVPR2016?day=all",
+            "expect": [
+              "CVPR2016"
+            ]
+          },
+          "2017": {
+            "url": "https://openaccess.thecvf.com/CVPR2017?day=all",
+            "expect": [
+              "CVPR2017"
+            ]
+          },
+          "2018": {
+            "url": "https://openaccess.thecvf.com/CVPR2018",
+            "lists": [
+              "https://openaccess.thecvf.com/CVPR2018.py?day=2018-06-19",
+              "https://openaccess.thecvf.com/CVPR2018.py?day=2018-06-20",
+              "https://openaccess.thecvf.com/CVPR2018.py?day=2018-06-21"
+            ],
+            "expect": [
+              "CVPR2018"
+            ]
+          },
+          "2019": {
+            "url": "https://openaccess.thecvf.com/CVPR2019",
+            "lists": [
+              "https://openaccess.thecvf.com/CVPR2019.py?day=2019-06-18",
+              "https://openaccess.thecvf.com/CVPR2019.py?day=2019-06-19",
+              "https://openaccess.thecvf.com/CVPR2019.py?day=2019-06-20"
+            ],
+            "expect": [
+              "CVPR2019"
+            ]
+          },
+          "2020": {
+            "url": "https://openaccess.thecvf.com/CVPR2020",
+            "lists": [
+              "https://openaccess.thecvf.com/CVPR2020.py?day=2020-06-16",
+              "https://openaccess.thecvf.com/CVPR2020.py?day=2020-06-17",
+              "https://openaccess.thecvf.com/CVPR2020.py?day=2020-06-18"
+            ],
+            "expect": [
+              "CVPR2020"
+            ]
+          },
+          "2021": {
+            "url": "https://openaccess.thecvf.com/CVPR2021?day=all",
+            "expect": [
+              "CVPR2021"
+            ]
+          },
+          "2022": {
+            "url": "https://openaccess.thecvf.com/CVPR2022?day=all",
+            "expect": [
+              "CVPR2022"
+            ]
+          },
+          "2023": {
+            "url": "https://openaccess.thecvf.com/CVPR2023?day=all",
+            "expect": [
+              "CVPR2023"
+            ]
+          },
+          "2024": {
+            "url": "https://openaccess.thecvf.com/CVPR2024?day=all",
+            "expect": [
+              "CVPR2024"
+            ]
+          },
+          "2025": {
+            "url": "https://openaccess.thecvf.com/CVPR2025?day=all",
+            "expect": [
+              "CVPR2025"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "ACL",
+      "full": "Annual Meeting of the Association for Computational Linguistics (long papers)",
+      "proceedings": {
+        "kind": "acl",
+        "pages": {
+          "2013": {
+            "url": "https://aclanthology.org/volumes/P13-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2013"
+            ]
+          },
+          "2014": {
+            "url": "https://aclanthology.org/volumes/P14-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2014"
+            ]
+          },
+          "2015": {
+            "url": "https://aclanthology.org/volumes/P15-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2015"
+            ]
+          },
+          "2016": {
+            "url": "https://aclanthology.org/volumes/P16-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2016"
+            ]
+          },
+          "2017": {
+            "url": "https://aclanthology.org/volumes/P17-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2017"
+            ]
+          },
+          "2018": {
+            "url": "https://aclanthology.org/volumes/P18-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2018"
+            ]
+          },
+          "2019": {
+            "url": "https://aclanthology.org/volumes/P19-1/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2019"
+            ]
+          },
+          "2020": {
+            "url": "https://aclanthology.org/volumes/2020.acl-main/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2020"
+            ]
+          },
+          "2021": {
+            "url": "https://aclanthology.org/volumes/2021.acl-long/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2021"
+            ]
+          },
+          "2022": {
+            "url": "https://aclanthology.org/volumes/2022.acl-long/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2022"
+            ]
+          },
+          "2023": {
+            "url": "https://aclanthology.org/volumes/2023.acl-long/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2023"
+            ]
+          },
+          "2024": {
+            "url": "https://aclanthology.org/volumes/2024.acl-long/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2024"
+            ]
+          },
+          "2025": {
+            "url": "https://aclanthology.org/volumes/2025.acl-long/",
+            "expect": [
+              "Association for Computational Linguistics",
+              "2025"
+            ]
+          }
+        }
+      }
     }
   ]
 }
