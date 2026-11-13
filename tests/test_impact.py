@@ -138,7 +138,7 @@ def test_the_looser_try_accepts_nearly_the_same_words_and_says_so() -> None:
 def test_punctuation_never_reaches_the_filter() -> None:
     calls: list[dict[str, str]] = []
     match(['Seeds, "Variance" | Tables'], 2017, lambda p: calls.append(p) or {"meta": {"count": 0}, "results": []})  # type: ignore[func-returns-value]
-    assert calls[0]["filter"] == 'title.search:"seeds variance tables",publication_year:2016-2018'
+    assert calls[0]["filter"] == 'title.search:"seeds variance tables",publication_year:>2015'
 
 
 def test_venues(tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ class Paper:
     recent: int | None = None  # citations in the last two complete years, a speed
     doi: str = ""
     also: list[str] = field(default_factory=list)  # other OpenAlex records of the same paper (a preprint), not added in
-    how: str = ""  # how it was matched: exact, close (nearly the same words), or "" when unmatched
+    how: str = ""  # how it was matched: exact, later (the exact title, a record dated later), close (nearly the same words), or ""
     tried: str = ""  # when unmatched: the date it was last searched for in vain (searched again only weeks later)
 
     def with_work(self, w: dict[str, Any], as_of_year: int, also: list[str] | None = None, how: str | None = None) -> Paper:
@@ -72,6 +72,7 @@ class VenueYear:
     year: int
     source: str  # the proceedings page: the official list
     papers: list[Paper] = field(default_factory=list)
+    rule: int = 0  # the matching rule its matches were made under (match.RULE); 0 for data written before rules were numbered
 
     @property
     def matched(self) -> int:

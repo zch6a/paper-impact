@@ -113,7 +113,7 @@ def test_venue_years_no_longer_listed_are_removed_and_old_data_with_new_fields_s
     (tmp_path / "data" / "neurips").mkdir()
     papers = [{"title": "T", "year": 2017, "id": "https://openalex.org/W1", "cited_by_count": 3, "a_later_field": 1}]
     (tmp_path / "data" / "neurips" / "2017.json").write_text(json.dumps({"source": URL, "papers": papers}), encoding="utf-8")
-    source, previous = read_previous(tmp_path, VENUE, 2017)
+    source, previous, _ = read_previous(tmp_path, VENUE, 2017)
     assert source == URL and previous[0].cited_by_count == 3  # an unknown field does not throw everything away
     vys, _ = build([VENUE], range(2030, 2031), client(FakeWeb({})), 2026, tmp_path)  # outside --years: carried over
     write_data(tmp_path, [VENUE], vys, "2026-11-13")

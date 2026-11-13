@@ -1,0 +1,17 @@
+# Changelog
+
+## 0.1.0
+
+First release.
+
+- `paper-impact build venues.json -o site`: reads each venue's proceedings pages (NeurIPS, PMLR, CVF, ACL Anthology,
+  ICLR's conference site), matches every title to OpenAlex, and writes open JSON (one file per venue and year) and a
+  static site.
+- Per paper: citations, citations in the last two complete years, field-weighted citation impact, percentile, top 1% / 10%,
+  and how the title was matched (exact; on a record OpenAlex dates later; or nearly), with the OpenAlex record
+  linked.
+- Per venue and year: papers listed, papers matched, coverage.
+- Each build carries on from the last: matched papers are refreshed by ID; unmatched ones are searched again after
+  30 days; a build stopped by the day's budget keeps what it found.
+- `venues.json`: NeurIPS 2012–2024, ICML 2013–2025, ICLR 2021–2025, CVPR 2013–2025, ACL 2013–2025 (69,889 papers).
+- A daily GitHub workflow rebuilds the site at https://zch6a.github.io/paper-impact/.

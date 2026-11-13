@@ -24,7 +24,7 @@ select,input{font:inherit;color:var(--fg);background:var(--chip);border:1px soli
 input{flex:1;min-width:200px}.note{font-size:13px;color:var(--muted);margin:0 0 12px}.note a{color:var(--accent)}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
 th:nth-child(2),td:nth-child(2){text-align:left}th{font-size:13px;color:var(--muted);font-weight:600}td a{color:var(--fg);text-decoration:none}td a:hover{color:var(--accent);text-decoration:underline}
-.tag{display:inline-block;font-size:11px;padding:0 6px;border-radius:10px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.tag{display:inline-block;font-size:11px;padding:0 6px;border-radius:10px;border:1px solid var(--line);color:var(--muted);margin-left:6px}.how{border-style:dashed;cursor:help}
 footer{margin-top:28px;font-size:13px;color:var(--muted)}footer a{color:var(--accent)}
 td:nth-child(2){overflow-wrap:anywhere}
 @media (max-width:640px){th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5),th:nth-child(6),td:nth-child(6){display:none}
@@ -65,6 +65,10 @@ async function load(file) {
   if (!cache.has(file)) cache.set(file, fetch(file).then((r) => { if (!r.ok) throw new Error(file + ": " + r.status); return r.json(); }).catch((e) => { cache.delete(file); throw e; }));
   return cache.get(file);
 }
+const HOW = {  // how a title was matched, when not exactly within a year
+  close: ["near title", "Matched to an OpenAlex record whose title differs a little (a plural, a hyphen, an article)"],
+  later: ["later record", "Matched to an OpenAlex record of the same title dated later (a reprint or journal version OpenAlex counts it under)"],
+};
 function option(select, value, text) { select.append(el("option", text, { value: String(value) })); }
 function years() {  // the years of the venue picked, keeping the year picked when it has one
   const venue = $("venue").value, keep = $("year").value, select = $("year");
@@ -90,7 +94,10 @@ async function render() {
     const td = el("td"), href = safe(p.url) || safe(p.doi) || safe(p.id);
     td.append(href ? el("a", p.title, { href, rel: "noopener" }) : el("span", p.title));
     if (p.top1) td.append(el("span", "top 1%", { class: "tag" })); else if (p.top10) td.append(el("span", "top 10%", { class: "tag" }));
-    tr.append(td, el("td", String(p.year)), el("td", num(p.cited_by_count)), el("td", num(p.fwci, 1)), el("td", p.percentile === null || p.percentile === undefined ? "–" : (100 * p.percentile).toFixed(1)), el("td", num(p.recent)));
+    if (HOW[p.how]) td.append(el("span", HOW[p.how][0], { class: "tag how", title: HOW[p.how][1] }));
+    const cites = el("td"), record = safe(p.id);  // the number links to the OpenAlex record it came from
+    cites.append(record ? el("a", num(p.cited_by_count), { href: record, rel: "noopener", title: "The OpenAlex record" }) : el("span", num(p.cited_by_count)));
+    tr.append(td, el("td", String(p.year)), cites, el("td", num(p.fwci, 1)), el("td", p.percentile === null || p.percentile === undefined ? "–" : (100 * p.percentile).toFixed(1)), el("td", num(p.recent)));
     rows.append(tr);
   });
   const note = $("note"); note.replaceChildren();

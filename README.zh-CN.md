@@ -16,6 +16,9 @@
 
 ---
 
+<p align="center"><a href="https://zch6a.github.io/paper-impact/"><img src="docs/site.png" width="820" alt="网站：NeurIPS 全部年份，按被引排序；AlexNet 排第一，标着 later record"></a></p>
+<p align="center"><b><a href="https://zch6a.github.io/paper-impact/">zch6a.github.io/paper-impact</a></b>：每日构建匹配到更多论文，网站随之填满（见<a href="#局限">局限</a>）。</p>
+
 会议论文的被引数很分散：同一篇论文的预印本和论文集版本是两条记录；会议的归属登记得不一致（OpenAlex 里名为
 “International Conference on Learning Representations”的 source 总共只有 602 篇）；原始被引数又偏向老论文和大领域。
 paper-impact 从各会议论文集列出的论文出发，在 OpenAlex 里逐篇找到它们，把 OpenAlex 的领域归一化指标和原始被引数放在一起，并说明找到了多少。
@@ -42,8 +45,11 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
 [venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024、ICML 2013–2025（PMLR）、ICLR 2021–2025（会议网站的论文页）、CVPR 2013–2025（CVF open access）和 ACL 2013–2025（长文；2020 年为主卷，含长文与短文），共 69889 篇；每个页面都写明它必须包含的文字（会议名、年份），
 卷号写错时会直接报错，而不是悄悄混进另一个会议。
 
-- **匹配**：标题在 OpenAlex 里每次约 20 个一起搜索，只接受规范化后完全相同、年份相差不超过一年的记录；没命中的再宽松地试一次
-  （85% 的词相同、长度相近），在数据里标为 `close`。预印本和论文集版本两条记录时，显示被引更多的那条，另一条记在 `also` 里（不相加：OpenAlex 是分开计数的）。
+- **匹配**：标题在 OpenAlex 里每次约 20 个一起搜索，只接受规范化后完全相同、年份相差不超过一年的记录；五个词以上的标题也接受年份更晚的记录
+  （OpenAlex 有时按后来的重印本给主记录定年份：NeurIPS 2012 的 AlexNet 是一条 2017 年的记录，11 万多次被引都在它上面），这种在数据里标为
+  `later`，页面上显示 “later record”。没命中的再宽松地试一次（85% 的词相同、长度相近，仍限一年内），标为 `close`（页面上 “near title”）。
+  预印本和论文集版本两条记录时，显示被引更多的那条，另一条记在 `also` 里（不相加：OpenAlex 是分开计数的）。页面上每个被引数都链接到它来自的
+  OpenAlex 记录。
 - **费用**：每次搜索花 OpenAlex 额度 0.001 美元：一个 1000 篇的会议年份约 50 次搜索，加上每篇未命中的宽松重试一次（共 0.05 到 0.15 美元）。搜过但没找到的论文 30 天后才会再搜。不设 `OPENALEX_API_KEY` 时每天 0.10 美元额度，
   同一 IP 下所有人共享；免费 key 每天 1 美元。重建时复用 `site/` 里已有的数据：只搜索还没找到的论文，其余按 ID 刷新（每次请求 100 篇，0.0001 美元）；OpenAlex 不再返回其 ID 的论文会重新搜索。某个会议年份的页面出错时（页面变了、网站宕机）保留它上次的数据并报告，其余照常构建。同一会议年份里标题相同的两篇论文都会列出，但都不匹配（一条记录分不清是哪一篇）；很短且同名作品很多的标题（如 “Introduction”）也一样。
 - **每日构建**（[site.yml](.github/workflows/site.yml)）：构建任务用只读权限运行，数据存在 Actions 缓存里；部署任务只负责发布到 Pages。

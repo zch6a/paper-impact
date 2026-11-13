@@ -1,9 +1,12 @@
 """Proceedings titles to OpenAlex works: searched in batches (several titles ORed in one search, which costs as much as
-one), accepted only on an exact normalized title within a year of the venue's; of several such records (a preprint and
-the published paper, citations split between them) the most cited, the others kept as "also". Titles a batch does not
-settle (its answer was cut at a page) are searched alone; a title still unmatched gets one looser try (its words, not
-the phrase), accepted only when 85% of the words agree and the length is close, and marked "close"; after that it
-stays unmatched and counted."""
+one), accepted only on an exact normalized title within a year of the venue's, or, for a title of LATER_WORDS words or
+more, dated later (OpenAlex may date a paper's main record by a later reprint: AlexNet, NeurIPS 2012, is a 2017 record
+with its citations); of several such records (a preprint and the published paper, citations split between them) the
+most cited, the others kept as "also", and marked "later" when it is dated after the venue's year and the next. The
+answer comes most cited first, so a title's best records are never past the page; titles a batch does not settle (its
+answer was cut) are searched alone. A title still unmatched gets one looser try (its words, not the phrase, within a
+year), accepted only when 85% of the words agree and the length is close, and marked "close"; after that it stays
+unmatched and counted."""
 
 from __future__ import annotations
 
@@ -18,6 +21,8 @@ from typing import Any
 from .openalex import FIELDS, BudgetExhausted
 
 WORD = re.compile(r"[\W_]+")
+RULE = 2  # the matching rule's version: exact matches made under an older one are made again (2: later records, most cited first)
+LATER_WORDS = 5  # a record dated later is taken for a title this long: shorter ones have namesakes in other years
 
 
 def normalize(title: str) -> str:
@@ -28,10 +33,26 @@ def normalize(title: str) -> str:
     >>> normalize("Rényi Divergence for $\\ell_1$")  # accents and underscores as OpenAlex may print them, or not
     'renyi divergence for ell 1'
     """
+    return " ".join(WORD.sub(" ", _fold(title)).split())
+
+
+def _fold(title: str) -> str:
     decomposed = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", title))
     folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
-    folded = re.sub("['’ʼ`´]", "", folded)  # an apostrophe joins: "Nesterov’s" is one word, as OpenAlex may print it with ' or none
-    return " ".join(WORD.sub(" ", folded).split())
+    return re.sub("['’ʼ`´]", "", folded)  # an apostrophe joins: "Nesterov’s" is one word, as OpenAlex may print it with ' or none
+
+
+def phrase(title: str) -> str:
+    r"""The phrase searched for a title: its normalized words, cut before the first word with an underscore when four or
+    more come before it. OpenAlex indexes ``$L_p$`` as one token, which the split words "l p" never match as a phrase
+    (and it may print it ``Lp`` or ``ℓp``); exactness is checked on the whole title afterwards.
+
+    >>> phrase("Optimal Tuning Curves for Arbitrary Stimuli: Minimum $L_p$ Loss"), phrase("On the $L_p$ Loss")
+    ('optimal tuning curves for arbitrary stimuli minimum', 'on the l p loss')
+    """
+    words = re.sub(r"\W+", " ", _fold(title)).split()
+    cut = next((i for i, w in enumerate(words) if "_" in w), len(words))
+    return " ".join(words[:cut]) if cut >= 4 else normalize(title)
 
 
 @dataclass
@@ -39,27 +60,29 @@ class Match:
     title: str
     work: dict[str, Any] | None = None  # the chosen OpenAlex work
     also: list[str] = field(default_factory=list)  # other OpenAlex records of the same title and year (IDs)
-    how: str = ""  # exact, close (the looser try), or "" when nothing matched
+    how: str = ""  # exact, later (the exact title, dated later), close (the looser try), or "" when nothing matched
 
 
 Searcher = Callable[[dict[str, str]], dict[str, Any]]  # params -> OpenAlex's answer
 
 
-def _query(norms: list[str], year: int) -> dict[str, str]:
+def _query(phrases_: list[str], year: int) -> dict[str, str]:
     # the phrases with punctuation removed: a comma or a | would cut the filter; exactness is checked here, not there
-    phrases = "|".join(f'"{n}"' for n in norms)
-    return {"filter": f"title.search:{phrases},publication_year:{year - 1}-{year + 1}", "per_page": "200", "select": FIELDS}
+    phrases = "|".join(f'"{n}"' for n in phrases_)
+    return {"filter": f"title.search:{phrases},publication_year:>{year - 2}", "per_page": "200", "sort": "cited_by_count:desc", "select": FIELDS}
 
 
 def _pick(norm: str, works: Iterable[dict[str, Any]], year: int) -> Match:
+    later = len(norm.split()) >= LATER_WORDS
     same = [w for w in works if normalize(str(w.get("title") or "")) == norm and isinstance(w.get("publication_year"), int)
-            and abs(w["publication_year"] - year) <= 1]  # fmt: skip
+            and (abs(w["publication_year"] - year) <= 1 or (later and w["publication_year"] > year))]  # fmt: skip
     if not same:
         return Match(norm)
     if len(same) > 3 and len(norm.split()) <= 2:
         return Match(norm)  # "Introduction", "Deep Learning": many works of that title; which one is this paper cannot be told
     same.sort(key=lambda w: (-(w.get("cited_by_count") or 0), abs(w["publication_year"] - year), str(w.get("id"))))
-    return Match(norm, same[0], [str(w.get("id")) for w in same[1:]], how="exact")
+    how = "later" if same[0]["publication_year"] > year + 1 else "exact"
+    return Match(norm, same[0], [str(w.get("id")) for w in same[1:]], how=how)
 
 
 def match(titles: list[str], year: int, search: Searcher, batch: int = 20, close: bool = True) -> dict[str, Match]:
@@ -72,11 +95,15 @@ def match(titles: list[str], year: int, search: Searcher, batch: int = 20, close
 
 
 def _match(titles: list[str], year: int, search: Searcher, batch: int, close: bool, out: dict[str, Match]) -> None:
-    norms = list(dict.fromkeys(n for n in (normalize(t) for t in titles) if n))
+    searched: dict[str, str] = {}  # normalized title -> the phrase searched
+    for t in titles:
+        if (n := normalize(t)) and n not in searched:
+            searched[n] = phrase(t)
+    norms = list(searched)
     retry: list[str] = []
     for i in range(0, len(norms), batch):
         group = norms[i : i + batch]
-        answer = search(_query(group, year))
+        answer = search(_query([searched[n] for n in group], year))
         results = [w for w in answer.get("results") or [] if isinstance(w, dict)]
         cut = int((answer.get("meta") or {}).get("count") or 0) > len(results)
         for n in group:
@@ -86,7 +113,7 @@ def _match(titles: list[str], year: int, search: Searcher, batch: int, close: bo
             else:
                 out[n] = m
     for n in retry:
-        answer = search(_query([n], year))
+        answer = search(_query([searched[n]], year))
         out[n] = _pick(n, (w for w in answer.get("results") or [] if isinstance(w, dict)), year)
     if close:
         for n in [n for n, m in out.items() if m.work is None]:

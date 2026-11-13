@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-# No dependencies: urllib for the API, string templates for the SVG.
+# No dependencies: urllib for the pages and the API, html.parser for the proceedings, one static page for the site.
 dependencies = []
 
 [project.urls]

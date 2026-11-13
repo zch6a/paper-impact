@@ -17,6 +17,9 @@ impact, by year.** The paper lists come from each venue's own proceedings; the n
 
 ---
 
+<p align="center"><a href="https://zch6a.github.io/paper-impact/"><img src="docs/site.png" width="820" alt="The site: NeurIPS, all years, most cited first; AlexNet tops the list, marked 'later record'"></a></p>
+<p align="center"><b><a href="https://zch6a.github.io/paper-impact/">zch6a.github.io/paper-impact</a></b>: the site fills in as the daily build matches more papers (see <a href="#limits">Limits</a>).</p>
+
 Citation counts of conference papers are scattered: a paper's preprint and its proceedings version are separate
 records, venues are filed inconsistently (OpenAlex's own "International Conference on Learning Representations"
 source holds 602 works), and raw counts favour older papers and bigger fields. paper-impact starts from what each
@@ -49,9 +52,12 @@ page), CVPR 2013–2025 (CVF open access) and ACL
 text it must contain (the venue, the year), so a wrong volume fails instead of bringing in another conference.
 
 - **Matching**: titles are searched in OpenAlex about 20 to a search, accepted only on the exact title (normalized)
-  within a year of the venue's; a miss gets one looser try (85% of the words, the length close), marked `close` in
-  the data. Of a preprint and a proceedings record, the more cited one is shown, the other kept in `also` (not added:
-  OpenAlex counts them apart).
+  within a year of the venue's, or, for titles of five words or more, dated later (OpenAlex sometimes dates a paper's
+  main record by a later reprint: AlexNet, NeurIPS 2012, is a 2017 record with its 114,000 citations), marked `later`
+  in the data and "later record" on the page. A miss gets one looser try (85% of the words, the length close, within
+  a year), marked `close` ("near title" on the page). Of a preprint and a proceedings record, the more cited one is
+  shown, the other kept in `also` (not added: OpenAlex counts them apart). On the page each citation count links to
+  the OpenAlex record it came from.
 - **Cost**: a search is $0.001 of OpenAlex's budget: a venue-year of 1,000 papers is about 50 searches, plus one looser
   try per miss ($0.05 to $0.15). A paper searched for in vain is searched again only after 30 days. Without
   `OPENALEX_API_KEY` the budget is $0.10 a day shared by everyone on your IP address; a free key gives $1. A rebuild

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .match import close_match, match, normalize
+from .match import RULE, close_match, match, normalize
 from .model import Paper, VenueYear
 from .openalex import BudgetExhausted, Client, KeyRejected, OpenAlexError
 from .proceedings import PARSERS, parse
@@ -79,14 +79,16 @@ RETRY_DAYS = 30  # a paper searched for in vain is searched again after this man
 EXACT_MISSED = "exact:"  # tried = "exact:2026-11-13": its exact search missed; its looser try is still to come
 
 
-def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper]]:
-    """The proceedings page and papers of an earlier build of this venue-year (empty when there is none)."""
+def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper], int]:
+    """The proceedings page, papers and matching rule of an earlier build of this venue-year (empty when there is none)."""
     path = out / "data" / venue.slug / f"{year}.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return str(data.get("source") or ""), [Paper.from_data(p) for p in data.get("papers") or [] if isinstance(p, dict) and p.get("title")]
+        papers = [Paper.from_data(p) for p in data.get("papers") or [] if isinstance(p, dict) and p.get("title")]
+        rule = data.get("rule")
+        return str(data.get("source") or ""), papers, rule if isinstance(rule, int) and not isinstance(rule, bool) else 0
     except (OSError, ValueError, TypeError):
-        return "", []
+        return "", [], RULE
 
 
 def _due(tried: str, today: dt.date) -> bool:
@@ -98,11 +100,16 @@ def _due(tried: str, today: dt.date) -> bool:
         return True
 
 
-def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, previous: list[Paper], today: dt.date | None = None) -> VenueYear:
+def build_venue_year(
+    venue: Venue, year: int, client: Client, as_of_year: int, previous: list[Paper], today: dt.date | None = None, rule: int = RULE
+) -> VenueYear:
     """A venue-year: its proceedings page read; papers matched before refreshed by ID (one whose ID OpenAlex no longer
-    returns is searched again); the others searched, except those searched in vain less than RETRY_DAYS ago; papers
-    that share a title within the venue-year left unmatched (one record cannot be told apart for two papers)."""
+    returns is searched again, and so is an exact match made under an older matching `rule`); the others searched,
+    except those searched in vain less than RETRY_DAYS ago; papers that share a title within the venue-year left
+    unmatched (one record cannot be told apart for two papers)."""
     today = today or dt.date.today()
+    if rule < RULE:  # the exact search has changed since: its matches are made again (a batch of 20 costs one search)
+        previous = [Paper(q.title, q.year, q.url) if q.id and q.how in ("exact", "") else q for q in previous]
     url = venue.pages[year]
     papers, seen = [], set()
     for listing in venue.lists.get(year) or [url]:  # a conference may list its papers over several pages (one a day)
@@ -163,7 +170,7 @@ def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, p
         else:  # a title shared in this venue-year carries no mark: it is never searched
             keep = q is not None and not q.id and counts[n] == 1
             out.append(Paper(p.title, year, p.url, tried=q.tried if keep and q is not None else ""))
-    return VenueYear(venue.name, year, url, out)
+    return VenueYear(venue.name, year, url, out, RULE)
 
 
 @dataclass
@@ -180,19 +187,19 @@ def build(venues: list[Venue], years: range, client: Client, as_of_year: int, ou
     failures: list[Failure] = []
     for v in venues:
         for y in sorted(v.pages):
-            source, previous = read_previous(out, v, y)
+            source, previous, rule = read_previous(out, v, y)
             if y not in years:
                 if previous:
-                    built.append(VenueYear(v.name, y, source or v.pages[y], previous))
+                    built.append(VenueYear(v.name, y, source or v.pages[y], previous, rule))
                 continue
             try:
-                built.append(build_venue_year(v, y, client, as_of_year, previous))
+                built.append(build_venue_year(v, y, client, as_of_year, previous, rule=rule))
             except KeyRejected:
                 raise
             except (OpenAlexError, ValueError) as e:
                 failures.append(Failure(v.name, y, str(e)))
                 if previous:
-                    built.append(VenueYear(v.name, y, source or v.pages[y], previous))
+                    built.append(VenueYear(v.name, y, source or v.pages[y], previous, rule))
     if not client.exhausted:
         _close_pass([vy for vy in built if vy.year in years], client, as_of_year)
     return built, failures
@@ -241,7 +248,7 @@ def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], gen
     for vy in venue_years:
         path = data / slugs[vy.venue] / f"{vy.year}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        body = {"venue": vy.venue, "year": vy.year, "source": vy.source, "papers": [asdict(p) for p in vy.papers]}
+        body = {"venue": vy.venue, "year": vy.year, "source": vy.source, "rule": vy.rule, "papers": [asdict(p) for p in vy.papers]}
         path.write_text(json.dumps(body, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
         written.append(path)
         index["venue_years"].append({"venue": vy.venue, "year": vy.year, "file": path.relative_to(out).as_posix(), "source": vy.source,

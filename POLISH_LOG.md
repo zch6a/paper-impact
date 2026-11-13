@@ -251,3 +251,41 @@ Also: the README says ACL 2020 is its main volume (long and short papers). venue
 Tests: 39 (were 32). ruff, mypy clean.
 
 Next: round 4.
+
+### 2026-11-13 — polishing round 4
+
+Checked: the live site (26 venue-years, 903 of 34,609 matched so far, the keyless budget); a fresh
+`uvx --from git+https://github.com/zch6a/paper-impact` install (`--version`, `build --help`); no subprocess, eval,
+pickle or innerHTML in the source; versions agree (0.1.0).
+
+**AlexNet was matched to the wrong record.** Making the social card from the live site showed NeurIPS 2012 topped by
+word2vec, with AlexNet nowhere near: it had been matched to a minor 2012 record with 830 citations, because OpenAlex
+dates AlexNet's main record, 114,706 citations, 2017 (it merged the CACM reprint into it), outside the one-year
+window. Any paper republished later (CACM research highlights, journal versions OpenAlex merged) was undercounted the
+same way.
+
+- The exact search now takes records of the same title dated later too, for titles of five words or more (shorter
+  ones have namesakes in other years); the most cited record still wins, and one dated after the window is marked
+  `later` ("later record" on the page). Measured on one real batch: 23 results instead of 18, the same cost.
+- The search asks for the most cited first: a title's best records can no longer fall past a cut page (before, a
+  title that found a lesser record on the page was never retried).
+- Each venue-year's data records the matching rule it was made under (`rule`, now 2): exact matches made under an
+  older rule are searched again (20 titles a search: the 903 matched so far cost about 45 searches); close matches
+  and misses keep theirs.
+- A title with an underscore (`Minimum $L_p$ Loss`) was searched as the words "l p", which OpenAlex's one token
+  `l_p` never matches as a phrase: such titles had matched only under round 1's normalization, and re-matching would
+  have lost them. The phrase searched is now cut before the first word with an underscore (when four words or more
+  come before it); exactness is still checked on the whole title. Measured: 19 of the same 20 real titles match,
+  AlexNet now with its main record, nothing else changed.
+- The page now links each citation count to the OpenAlex record it came from and tags `later` and `close` matches
+  (with a tooltip saying what they mean): SECURITY.md's claim that it does is now true.
+
+Also: SECURITY.md (the hosts contacted, the key only to OpenAlex, the inert page, the workflow's split), CONTRIBUTING
+(module map, adding a venue, the rules), CHANGELOG, the plugin Skill (reads the published JSON, checked against the
+live files: `file` is relative to the site, not to `data/`), the social card and a screenshot of the site at the top
+of the README (both from a local copy of the live data with AlexNet as the fixed matcher gives it, the real record);
+pyproject's comment about "templates for the SVG" (copied from scholar-cards) corrected.
+
+Tests: 48 (were 39). ruff, mypy clean.
+
+Next: round 5 (a third independent review), then v0.1.0.
