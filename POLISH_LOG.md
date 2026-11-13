@@ -109,3 +109,26 @@ Tests: 18. ruff, mypy clean.
 
 Next: README (English, Chinese), the site's look on the ICML 2017 build, CI, the scheduled build-and-deploy workflow
 (the build job read-only; the Pages deploy runs no project code), the public repository; then a first full build.
+
+### 2026-11-13 — the site with real data; README, CI, the monthly build
+
+- **ICML 2017 built and looked at** (served locally, read in the browser pane): no console errors; the note links
+  the proceedings and gives 434 listed, 418 found (96%); the expected papers on top. 39 requests: the looser tries
+  for the 16 misses accepted none here.
+- **Found**: 283 of the 418 found papers have no FWCI or percentile: OpenAlex computes them for some records only
+  (MAML's matched record is its arXiv preprint, which has neither). Sorting by percentile would silently rank a
+  minority, so the note now says how many have them ("135 of the 418 found") and that the rest come last.
+- **README** (English, Chinese): what it is for, ICML 2017's real numbers, the site, building it, matching and cost,
+  the monthly build, what each number is, the limits (OpenAlex's coverage, normalized numbers for a minority, venues
+  appear once their proceedings are up).
+- **CI** (three systems × Python 3.10/3.13), the release workflow, and **site.yml**: monthly and by hand; the build job
+  runs the tool with a read-only token, restores and saves its data in the Actions cache (so only new papers are
+  searched), and uploads the site; the deploy job only publishes it to Pages. Actions pinned to commits (cache
+  v6.1.0, upload-pages-artifact v5.0.0, deploy-pages v5.0.1). An `OPENALEX_API_KEY` secret is optional.
+
+The trial site was in a temporary folder, deleted after.
+
+Tests: 18. ruff, mypy clean.
+
+Next: the public repository and CI; Pages turned on (a repository setting), then the first full build: without a key
+the shared $0.10 a day covers about 2,000 papers a day, so a key from the user would make it days instead of weeks.

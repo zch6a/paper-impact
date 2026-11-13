@@ -1,0 +1,53 @@
+name: Site
+# Monthly (and by hand): build the data and the site, then publish them on GitHub Pages.
+# - The build job runs the tool with a read-only token. The data of the last build is restored from the cache, so only
+#   new venue-years (and papers) are searched; matched papers are refreshed by ID. OPENALEX_API_KEY, if the repository
+#   has that secret, raises OpenAlex's daily budget; without it the build still runs, slower to fill.
+# - The deploy job runs nothing of the project: it publishes the artifact the build uploaded.
+# Actions pinned to commits.
+on:
+  schedule: [{ cron: "17 4 3 * *" }]   # the 3rd of each month
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: site
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3; it has no moving major tag
+      - name: The last build's data
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: site/data
+          key: site-data-${{ github.run_id }}
+          restore-keys: site-data-
+      - name: Build
+        env:
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: uv run paper-impact build venues.json -o site
+      - name: Keep the data for the next build
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: site/data
+          key: site-data-${{ github.run_id }}
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

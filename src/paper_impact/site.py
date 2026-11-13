@@ -77,12 +77,14 @@ async function render() {
   const note = $("note"); note.replaceChildren();
   const listed = vys.reduce((n, vy) => n + vy.listed, 0), matched = vys.reduce((n, vy) => n + vy.matched, 0);
   const shown = papers.length > 500 ? `the first 500 of ${papers.length.toLocaleString("en-US")} papers` : `${papers.length.toLocaleString("en-US")} papers`;
+  const normalized = papers.filter((p) => p.percentile !== null).length, found = papers.filter((p) => p.id).length;
+  const scope = `OpenAlex gives FWCI and the field-normalized percentile for ${normalized.toLocaleString("en-US")} of the ${found.toLocaleString("en-US")} found (not for preprint records, among others); sorting by them ranks those, the rest come last. `;
   if (vys.length === 1) {
     const vy = vys[0];
     note.append(el("span", `${shown}. The `), el("a", "proceedings", { href: vy.source, rel: "noopener" }),
-      el("span", ` of ${vy.venue} ${vy.year} list ${vy.listed.toLocaleString("en-US")}; ${vy.matched.toLocaleString("en-US")} (${(100 * (vy.coverage || 0)).toFixed(0)}%) were found in OpenAlex. Papers not found are listed without numbers.`));
+      el("span", ` of ${vy.venue} ${vy.year} list ${vy.listed.toLocaleString("en-US")}; ${vy.matched.toLocaleString("en-US")} (${(100 * (vy.coverage || 0)).toFixed(0)}%) were found in OpenAlex. Papers not found are listed without numbers. ` + scope));
   } else {
-    note.append(el("span", `${shown}. The proceedings list ${listed.toLocaleString("en-US")}; ${matched.toLocaleString("en-US")} (${listed ? (100 * matched / listed).toFixed(0) : 0}%) were found in OpenAlex.`));
+    note.append(el("span", `${shown}. The proceedings list ${listed.toLocaleString("en-US")}; ${matched.toLocaleString("en-US")} (${listed ? (100 * matched / listed).toFixed(0) : 0}%) were found in OpenAlex. ` + scope));
   }
 }
 async function start() {
