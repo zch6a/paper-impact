@@ -77,6 +77,10 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
 [arxiv-diff](https://github.com/zch6a/arxiv-diff) 显示版本之间改了什么；[exp-tables](https://github.com/zch6a/exp-tables) 把实验结果变成只在有依据时才加粗的表格；
 [scholar-cards](https://github.com/zch6a/scholar-cards) 把学者的数字放到个人主页上。
 
+## 属于 research-kit
+
+这是 13 个开源科研工具之一，覆盖从读论文到论文发表之后。全部工具按科研流程的介绍，以及安装它们技能的 Claude Code 插件市场，见 [research-kit](https://github.com/zch6a/research-kit) · [网站](https://zch6a.github.io/research-kit/)。
+
 ## 许可证
 
 代码为 MIT。数据来自 OpenAlex（CC0）和各会议论文集的列表（标题与链接）。

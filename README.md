@@ -101,6 +101,12 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
 [exp-tables](https://github.com/zch6a/exp-tables) turns results into tables with honest bold;
 [scholar-cards](https://github.com/zch6a/scholar-cards) puts a researcher's numbers on their homepage.
 
+## Part of research-kit
+
+One of thirteen open research tools, from reading papers to after publication. All of them, in the order of
+the work, with one Claude Code plugin marketplace for their skills: [research-kit](https://github.com/zch6a/research-kit)
+· [site](https://zch6a.github.io/research-kit/).
+
 ## License
 
 MIT for the code. The data is OpenAlex's (CC0) and the venues' proceedings listings (titles and links).
