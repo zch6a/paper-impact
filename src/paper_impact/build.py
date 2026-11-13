@@ -4,8 +4,10 @@ in the data: only new venue-years (or papers) are searched, and matched works' n
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -13,7 +15,7 @@ from typing import Any
 from . import __version__
 from .match import match, normalize
 from .model import Paper, VenueYear
-from .openalex import BudgetExhausted, Client
+from .openalex import BudgetExhausted, Client, KeyRejected, OpenAlexError
 from .proceedings import PARSERS, parse
 
 SLUG = re.compile(r"[^a-z0-9]+")
@@ -67,48 +69,104 @@ def read_venues(path: Path) -> list[Venue]:
     return venues
 
 
-def read_previous(out: Path, venue: Venue, year: int) -> dict[str, Paper]:
-    """The papers of an earlier build of this venue-year, by normalized title (empty when there is none)."""
+RETRY_DAYS = 30  # a paper searched for in vain is searched again after this many days, not every build
+
+
+def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper]]:
+    """The proceedings page and papers of an earlier build of this venue-year (empty when there is none)."""
     path = out / "data" / venue.slug / f"{year}.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return {normalize(p["title"]): Paper(**p) for p in data.get("papers") or []}
-    except (OSError, ValueError, TypeError, KeyError):
-        return {}
+        return str(data.get("source") or ""), [Paper.from_data(p) for p in data.get("papers") or [] if isinstance(p, dict) and p.get("title")]
+    except (OSError, ValueError, TypeError):
+        return "", []
 
 
-def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, previous: dict[str, Paper]) -> VenueYear:
+def _due(tried: str, today: dt.date) -> bool:
+    try:
+        return (today - dt.date.fromisoformat(tried)).days >= RETRY_DAYS
+    except ValueError:
+        return True
+
+
+def build_venue_year(venue: Venue, year: int, client: Client, as_of_year: int, previous: list[Paper], today: dt.date | None = None) -> VenueYear:
+    """A venue-year: its proceedings page read; papers matched before refreshed by ID (one whose ID OpenAlex no longer
+    returns is searched again); the others searched, except those searched in vain less than RETRY_DAYS ago; papers
+    that share a title within the venue-year left unmatched (one record cannot be told apart for two papers)."""
+    today = today or dt.date.today()
     url = venue.pages[year]
     page = client.page(url)
     missing = [x for x in venue.expect.get(year, []) if x not in page]
     if missing:
         raise ValueError(f"{url} does not mention {', '.join(repr(x) for x in missing)}: is it {venue.name} {year}'s proceedings?")
-    listed = parse(venue.kind, page, url)
-    papers = [Paper(item.title, year, item.url) for item in listed]
-    known = {normalize(p.title): previous[normalize(p.title)] for p in papers if normalize(p.title) in previous and previous[normalize(p.title)].id}
+    papers = [Paper(item.title, year, item.url) for item in parse(venue.kind, page, url)]
+    norm = {id(p): normalize(p.title) for p in papers}
+    counts = Counter(norm.values())
+    by_url = {q.url: q for q in previous if q.url}
+    by_title = {n: q for n, q in ((normalize(q.title), q) for q in previous) if sum(1 for r in previous if normalize(r.title) == n) == 1}
+    before = {id(p): by_url.get(p.url) or by_title.get(norm[id(p)]) for p in papers}
+
+    known = {id(p): q for p in papers if (q := before[id(p)]) is not None and q.id and counts[norm[id(p)]] == 1}
     try:
-        fresh = {w.get("id"): w for w in client.by_ids([p.id for p in known.values()])} if known else {}
+        fresh = {w.get("id"): w for w in client.by_ids([q.id for q in known.values()])} if known else {}
+        refreshed = True
     except BudgetExhausted:
-        fresh = {}  # the budget is spent: the numbers of the last build stand
-    to_search = [p.title for p in papers if normalize(p.title) not in known]
+        fresh, refreshed = {}, False  # the budget is spent: the numbers of the last build stand
+    if refreshed:
+        known = {k: q for k, q in known.items() if q.id in fresh}  # an ID OpenAlex no longer returns: search the title again
+
+    def wanted(p: Paper) -> bool:
+        q = before[id(p)]
+        return id(p) not in known and counts[norm[id(p)]] == 1 and bool(norm[id(p)]) and (q is None or not q.tried or _due(q.tried, today))
+
+    to_search = [p.title for p in papers if wanted(p)]
     found = match(to_search, year, client.search) if to_search and not client.exhausted else {}
     out = []
     for p in papers:
-        n = normalize(p.title)
-        if n in known and known[n].id in fresh:
-            out.append(p.with_work(fresh[known[n].id], as_of_year, known[n].also))
-        elif n in known:
-            out.append(known[n])  # matched before, not refreshed this time
-        elif n in found and found[n].work is not None:
+        n, q = norm[id(p)], before[id(p)]
+        if id(p) in known and q is not None:
+            out.append(
+                p.with_work(fresh[q.id], as_of_year, q.also, q.how)
+                if q.id in fresh
+                else Paper.from_data({**asdict(q), "title": p.title, "url": p.url})
+            )
+        elif n in found and found[n].work is not None and wanted(p):
             out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
+        elif n in found and wanted(p):
+            out.append(Paper(p.title, year, p.url, tried=today.isoformat()))  # searched in vain today
         else:
-            out.append(p)
+            out.append(Paper(p.title, year, p.url, tried=q.tried if q is not None and not q.id else ""))
     return VenueYear(venue.name, year, url, out)
 
 
-def build(venues: list[Venue], years: range, client: Client, as_of_year: int, out: Path) -> list[VenueYear]:
-    """Every venue-year with a proceedings page in `years`."""
-    return [build_venue_year(v, y, client, as_of_year, read_previous(out, v, y)) for v in venues for y in sorted(v.pages) if y in years]
+@dataclass
+class Failure:
+    venue: str
+    year: int
+    reason: str
+
+
+def build(venues: list[Venue], years: range, client: Client, as_of_year: int, out: Path) -> tuple[list[VenueYear], list[Failure]]:
+    """Every venue-year of the list: those in `years` built (a failing one, a changed page say, keeps its previous data
+    and is reported); the others carried over from the previous data unchanged. A rejected key stops the run."""
+    built: list[VenueYear] = []
+    failures: list[Failure] = []
+    for v in venues:
+        for y in sorted(v.pages):
+            source, previous = read_previous(out, v, y)
+            if y not in years:
+                if previous:
+                    built.append(VenueYear(v.name, y, source or v.pages[y], previous))
+                continue
+            try:
+                built.append(build_venue_year(v, y, client, as_of_year, previous))
+            except KeyRejected:
+                raise
+            except (OpenAlexError, ValueError) as e:
+                failures.append(Failure(v.name, y, str(e)))
+                if previous:
+                    built.append(VenueYear(v.name, y, source or v.pages[y], previous))
+    return built, failures
 
 
 def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], generated: str) -> list[Path]:
@@ -133,6 +191,12 @@ def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], gen
         written.append(path)
         index["venue_years"].append({"venue": vy.venue, "year": vy.year, "file": path.relative_to(out).as_posix(), "source": vy.source,
                                      "listed": len(vy.papers), "matched": vy.matched, "coverage": vy.coverage})  # fmt: skip
+    for stale in sorted(data.glob("*/*.json")):  # a venue-year no longer in the list is not published
+        if stale not in written:
+            stale.unlink()
+    for folder in sorted(data.glob("*")):
+        if folder.is_dir() and not any(folder.iterdir()):
+            folder.rmdir()
     (data / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     written.append(data / "index.json")
     return written

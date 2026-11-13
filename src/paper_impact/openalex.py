@@ -26,6 +26,10 @@ class OpenAlexError(Exception):
     pass
 
 
+class KeyRejected(OpenAlexError):
+    """OpenAlex refused the key (401/403): nothing to gain from going on."""
+
+
 class BudgetExhausted(OpenAlexError):
     """OpenAlex's daily budget is spent (a 429 with a long wait, or one that does not lift): stop asking until tomorrow."""
 
@@ -71,6 +75,8 @@ class Client:
                     raise BudgetExhausted(f"OpenAlex's daily budget is spent (come back in {seconds / 3600:.1f} hours)")
                 self._sleep(min(60.0, seconds))
                 continue
+            if status in (401, 403):
+                raise KeyRejected(f"OpenAlex refused the request ({status}): is OPENALEX_API_KEY right? {body[:200].decode('utf-8', 'replace')}")
             if status != 200:
                 raise OpenAlexError(f"OpenAlex answered {status} for {url}: {body[:200].decode('utf-8', 'replace')}")
             try:

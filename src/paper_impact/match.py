@@ -8,6 +8,7 @@ stays unmatched and counted."""
 from __future__ import annotations
 
 import contextlib
+import difflib
 import re
 import unicodedata
 from collections.abc import Callable, Iterable
@@ -16,16 +17,19 @@ from typing import Any
 
 from .openalex import FIELDS, BudgetExhausted
 
-WORD = re.compile(r"[^\w]+")
+WORD = re.compile(r"[\W_]+")
 
 
 def normalize(title: str) -> str:
-    """A title as matching compares it: compatibility-folded, case-folded, punctuation and spacing as single spaces.
+    r"""A title as matching compares it: compatibility-folded, case-folded, punctuation and spacing as single spaces.
 
     >>> normalize("Attention Is  All You Need!"), normalize("ﬁne-tuning: “BERT”"), normalize("Nesterov’s Priv'IT")
     ('attention is all you need', 'fine tuning bert', 'nesterovs privit')
+    >>> normalize("Rényi Divergence for $\\ell_1$")  # accents and underscores as OpenAlex may print them, or not
+    'renyi divergence for ell 1'
     """
-    folded = unicodedata.normalize("NFKC", title).casefold()
+    decomposed = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", title))
+    folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
     folded = re.sub("['’ʼ`´]", "", folded)  # an apostrophe joins: "Nesterov’s" is one word, as OpenAlex may print it with ' or none
     return " ".join(WORD.sub(" ", folded).split())
 
@@ -52,6 +56,8 @@ def _pick(norm: str, works: Iterable[dict[str, Any]], year: int) -> Match:
             and abs(w["publication_year"] - year) <= 1]  # fmt: skip
     if not same:
         return Match(norm)
+    if len(same) > 3 and len(norm.split()) <= 2:
+        return Match(norm)  # "Introduction", "Deep Learning": many works of that title; which one is this paper cannot be told
     same.sort(key=lambda w: (-(w.get("cited_by_count") or 0), abs(w["publication_year"] - year), str(w.get("id"))))
     return Match(norm, same[0], [str(w.get("id")) for w in same[1:]], how="exact")
 
@@ -101,6 +107,15 @@ def similar(a: str, b: str) -> float:
     return round(len(x & y) / len(x | y), 3) if x | y else 0.0
 
 
+def in_order(a: str, b: str) -> float:
+    """How much of the word order two titles share (0 to 1): "deep sets" and "sets deep" share the words, not the title.
+
+    >>> in_order("deep sets", "sets deep"), in_order("adaptive gradient algorithms", "adaptive gradient algorithm")
+    (0.5, 1.0)
+    """
+    return round(difflib.SequenceMatcher(None, [_stem(w) for w in a.split()], [_stem(w) for w in b.split()]).ratio(), 3)
+
+
 def _stem(word: str) -> str:
     return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
 
@@ -114,7 +129,7 @@ def _close(norm: str, works: list[dict[str, Any]], year: int) -> Match:
         y = w.get("publication_year")
         if not other or not isinstance(y, int) or abs(y - year) > 1:
             continue
-        if similar(norm, other) >= 0.85 and abs(len(other) - len(norm)) <= 0.15 * len(norm):
+        if similar(norm, other) >= 0.85 and in_order(norm, other) >= 0.85 and abs(len(other) - len(norm)) <= 0.15 * len(norm):
             good.append((similar(norm, other), w.get("cited_by_count") or 0, w))
     if not good:
         return Match(norm)

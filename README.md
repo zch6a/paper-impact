@@ -50,13 +50,16 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
   within a year of the venue's; a miss gets one looser try (85% of the words, the length close), marked `close` in
   the data. Of a preprint and a proceedings record, the more cited one is shown, the other kept in `also` (not added:
   OpenAlex counts them apart).
-- **Cost**: a search is $0.001 of OpenAlex's budget, so a venue-year of 1,000 papers is about $0.05. Without
+- **Cost**: a search is $0.001 of OpenAlex's budget: a venue-year of 1,000 papers is about 50 searches, plus one looser
+  try per miss ($0.05 to $0.15). A paper searched for in vain is searched again only after 30 days. Without
   `OPENALEX_API_KEY` the budget is $0.10 a day shared by everyone on your IP address; a free key gives $1. A rebuild
   reuses the data already in `site/`: only papers not yet found are searched, the others refreshed by ID (100 to a
-  request, $0.0001).
+  request, $0.0001); a paper whose OpenAlex ID no longer comes back is searched again. A venue-year whose page fails
+  (it changed, the site is down) keeps its previous data and is reported; the others are built. Two papers with the
+  same title in one venue-year are both listed, neither matched (one record cannot be told apart for two papers);
+  so are very short titles with many namesakes ("Introduction").
 - **The daily build** ([site.yml](.github/workflows/site.yml)): the build job runs with a read-only token and keeps
-  its data in the Actions cache; the deploy job only publishes to Pages. Without a key each run matches about 2,000 papers, so the site fills over two or three weeks; an `OPENALEX_API_KEY` secret makes that a few days. Add one for a full
-  first build in days rather than weeks.
+  its data in the Actions cache; the deploy job only publishes to Pages. Without a key each run matches about 2,000 papers, so the site fills over two or three weeks; an `OPENALEX_API_KEY` secret makes it a few days.
 
 ## What the numbers are
 
@@ -74,6 +77,8 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
 - FWCI and the percentile exist for a minority of conference papers (often not for preprint records); sorting by
   them ranks those, the rest come last, and the page says how many.
 - A venue appears once its proceedings are posted: NeurIPS 2025 is left out while only its Creative AI track is up.
+- GitHub pauses scheduled workflows in a repository with no activity for 60 days; the daily build then waits for a
+  commit or a run by hand (the cached data is kept for 7 days unused).
 
 ## Also in this toolkit
 

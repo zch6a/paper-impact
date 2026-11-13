@@ -52,13 +52,15 @@ def main(argv: list[str] | None = None) -> int:
         client = Client()
         venues = read_venues(args.venues)
         today = dt.date.today()
-        venue_years = build(venues, args.years, client, today.year, args.out)
+        venue_years, failures = build(venues, args.years, client, today.year, args.out)
         write_data(args.out, venues, venue_years, today.isoformat())
         write_site(args.out)
         listed = sum(len(vy.papers) for vy in venue_years)
         matched = sum(vy.matched for vy in venue_years)
         print(f"paper-impact: {len(venue_years)} venue-years, {listed} papers, {matched} matched in OpenAlex "
               f"({100 * matched / listed if listed else 0:.0f}%), {client.calls} requests -> {args.out.as_posix()}/")  # fmt: skip
+        for f in failures:
+            print(f"paper-impact: warning: {f.venue} {f.year} not rebuilt (its previous data kept): {f.reason}", file=sys.stderr)
         if client.exhausted:
             print("paper-impact: OpenAlex's daily budget ran out: the papers not matched yet are listed without numbers, and the next "
                   "build (reusing this one's data) carries on; a free OPENALEX_API_KEY makes the budget ten times larger")  # fmt: skip

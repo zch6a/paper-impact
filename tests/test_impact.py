@@ -83,8 +83,8 @@ def test_a_neurips_page_that_disagrees_with_its_own_count_is_refused() -> None:
 def test_a_page_that_does_not_mention_its_venue_and_year_is_refused(tmp_path: Path) -> None:
     venues = [Venue("ICML", "", "pmlr", {2017: "https://proceedings.mlr.press/v70/"}, {2017: ["International Conference on Machine Learning"]})]
     web = FakeWeb({"https://proceedings.mlr.press/v70/": PMLR})
-    with pytest.raises(ValueError, match="does not mention 'International Conference on Machine Learning'"):
-        build(venues, range(2017, 2018), Client(key="", get=web, sleep=lambda _: None), 2026, tmp_path)
+    vys, failures = build(venues, range(2017, 2018), Client(key="", get=web, sleep=lambda _: None), 2026, tmp_path)
+    assert vys == [] and len(failures) == 1 and "does not mention 'International Conference on Machine Learning'" in failures[0].reason
 
 
 def test_the_matcher_is_exact_and_takes_the_most_cited_record() -> None:
@@ -159,7 +159,7 @@ def test_build_writes_the_data_and_a_rebuild_reuses_the_matches(tmp_path: Path) 
               Venue("ICML", "", "pmlr", {2017: "https://proceedings.mlr.press/v70/", 2030: "https://proceedings.mlr.press/v999/"})]  # fmt: skip
     web = FakeWeb(pages)
     c = Client(key="k", get=web, sleep=lambda _: None)
-    vys = build(venues, range(2017, 2018), c, 2026, tmp_path)
+    vys, _ = build(venues, range(2017, 2018), c, 2026, tmp_path)
     assert [(vy.venue, len(vy.papers), vy.matched) for vy in vys] == [("NeurIPS", 3, 2), ("ICML", 2, 1)]
     assert vys[0].papers[0].cited_by_count == 500 and vys[0].papers[0].recent == 75 and vys[0].papers[2].id == ""
     assert all("Authorization" not in h for u, h in web.calls if not u.startswith("https://api.openalex.org"))  # the key stays with OpenAlex
@@ -169,9 +169,10 @@ def test_build_writes_the_data_and_a_rebuild_reuses_the_matches(tmp_path: Path) 
                                        "source": "https://papers.nips.cc/paper_files/paper/2017", "listed": 3, "matched": 2,
                                        "coverage": 2 / 3}  # fmt: skip
     web2 = FakeWeb(pages)
-    vys2 = build(venues, range(2017, 2018), Client(key="", get=web2, sleep=lambda _: None), 2026, tmp_path)
+    vys2, _ = build(venues, range(2017, 2018), Client(key="", get=web2, sleep=lambda _: None), 2026, tmp_path)
     searches = [u for u, _ in web2.calls if "title.search" in u]
-    assert [vy.matched for vy in vys2] == [2, 1] and all("Lacks" in u or "lacks" in u or "seeds" in u for u in searches)  # only the unmatched again
+    assert [vy.matched for vy in vys2] == [2, 1] and searches == []  # the misses were searched today: not again for weeks
+    assert vys2[0].papers[2].tried == vys[0].papers[2].tried != ""
 
 
 def test_a_paper_without_a_work_has_no_numbers() -> None:
@@ -214,12 +215,12 @@ def test_an_exhausted_budget_keeps_what_was_found_and_the_next_build_carries_on(
             return super().__call__(url, headers)
 
     c = Client(key="", get=Spent(pages), sleep=lambda _: None)
-    vys = build(venues, range(2017, 2018), c, 2026, tmp_path)
+    vys, _ = build(venues, range(2017, 2018), c, 2026, tmp_path)
     assert c.exhausted and [len(vy.papers) for vy in vys] == [3] and vys[0].matched == 0  # listed, not matched
     write_data(tmp_path, venues, vys, "2026-11-13")
-    vys = build(venues, range(2017, 2018), Client(key="", get=FakeWeb(pages), sleep=lambda _: None), 2026, tmp_path)
+    vys, _ = build(venues, range(2017, 2018), Client(key="", get=FakeWeb(pages), sleep=lambda _: None), 2026, tmp_path)
     assert vys[0].matched == 2  # the next day: matched
     write_data(tmp_path, venues, vys, "2026-11-14")
     c = Client(key="", get=Spent(pages), sleep=lambda _: None)
-    vys = build(venues, range(2017, 2018), c, 2026, tmp_path)
+    vys, _ = build(venues, range(2017, 2018), c, 2026, tmp_path)
     assert vys[0].matched == 2 and vys[0].papers[0].cited_by_count == 500  # spent again: the last numbers stand

@@ -9,7 +9,6 @@ paper's page (no abstracts, no PDFs).
 
 from __future__ import annotations
 
-import html
 import urllib.parse
 from dataclasses import dataclass
 from html.parser import HTMLParser
@@ -123,8 +122,9 @@ def parse(kind: str, page: str, base: str) -> list[Listed]:
     seen: set[str] = set()
     out = []
     for item in parser.out:
-        key = html.unescape(item.title).casefold()
-        if key not in seen:
+        url = item.url if urllib.parse.urlparse(item.url).scheme in ("http", "https") else ""  # no javascript: links
+        key = url or item.title
+        if key not in seen:  # the same paper listed twice; two papers may share a title, not a link
             seen.add(key)
-            out.append(item)
+            out.append(Listed(item.title, url))
     return out

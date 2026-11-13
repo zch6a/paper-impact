@@ -25,6 +25,7 @@ class Paper:
     doi: str = ""
     also: list[str] = field(default_factory=list)  # other OpenAlex records of the same paper (a preprint), not added in
     how: str = ""  # how it was matched: exact, close (nearly the same words), or "" when unmatched
+    tried: str = ""  # when unmatched: the date it was last searched for in vain (searched again only weeks later)
 
     def with_work(self, w: dict[str, Any], as_of_year: int, also: list[str] | None = None, how: str | None = None) -> Paper:
         """The paper with an OpenAlex work's numbers.
@@ -57,6 +58,12 @@ class Paper:
             also=list(also if also is not None else self.also),
             how=how if how is not None else (self.how or "exact"),
         )
+
+    @classmethod
+    def from_data(cls, d: dict[str, Any]) -> Paper:
+        """A paper from the data written before (fields a later version added or dropped are ignored)."""
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
 
 
 @dataclass

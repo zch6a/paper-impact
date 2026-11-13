@@ -157,3 +157,43 @@ Tests: 19.
 
 Next: the five polishing rounds while the data fills (an independent review; the site on real data at phone width;
 more venues whose proceedings pages are reachable: ICLR, ACL, CVPR).
+
+### 2026-11-13 — polishing round 1
+
+**The live site at phone width** (375 px, in the browser pane): the page scrolled sideways (494 px): the venue picker,
+with its full name, and the table. Pickers now fit the screen, titles wrap anywhere, cells are tighter, the year
+column is hidden on phones (the column sorted by stays); the note starts with a capital letter.
+
+**Independent review** (12 findings, all fixed, tests in `tests/test_review_round1.py`):
+
+1. **The daily build would stall**: papers OpenAlex does not have were searched again every run (about one search
+   each), and NeurIPS 2012–2013's 81 misses alone would take most of the keyless budget, so later venue-years would
+   never be reached. A miss now records the date (`tried`) and is searched again only after 30 days.
+2. A `close` match became `exact` on the next build (the refresh dropped `how`): kept.
+3. A work OpenAlex merged or dropped kept its old numbers for ever, never searched again: an ID that no longer comes
+   back is searched again.
+4. One failing venue-year (a changed page, five network errors) threw away the whole run and the day's budget: it now
+   keeps its previous data and is reported, the rest are built and written. A key OpenAlex refuses (401/403) stops
+   the run: going on would only fail.
+5. Two papers with the same title: the parser dropped the second (it deduplicated by title), and both would have got
+   the same record. Now deduplicated by link; papers sharing a normalized title in a venue-year are listed and left
+   unmatched. Earlier papers are found again by their link, not their title.
+6. Generic titles ("Introduction": 43 exact namesakes on one page) took the most cited stranger: a title of one or two
+   words with more than three exact namesakes is left unmatched.
+7. The page could show an earlier choice (a slower render finishing last), and a failed load stayed failed until a
+   reload: each render has a ticket, a failed load is forgotten and reported; typing in the search box waits 150 ms.
+8. A `javascript:` link from a proceedings page would reach `href`: the parser keeps only http(s) links, and the page
+   links only http(s) addresses.
+9. The year menu offered years a venue does not have (an empty table): it follows the venue.
+10. Data of venue-years no longer in the list stayed published: removed; venue-years outside `--years` are carried
+    over unchanged instead of dropped.
+11. One unknown field in the earlier data discarded all of it (and every match): unknown fields are ignored.
+12. Matching: accents and underscores are folded ("Rényi" = "Renyi", `$\ell_1$` = "ell 1"); the looser try also
+    needs the words in order ("deep sets" is not "sets deep").
+
+From its "plausible" list: the README says GitHub pauses scheduled workflows after 60 days without activity, and what
+the looser tries cost.
+
+Tests: 30 (were 19). ruff, mypy clean.
+
+Next: round 2.
