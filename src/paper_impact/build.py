@@ -52,6 +52,8 @@ def read_venues(path: Path) -> list[Venue]:
         if proc.get("kind") not in PARSERS:
             raise ValueError(f"{path.as_posix()}: {v['name']}: proceedings kind must be one of {', '.join(PARSERS)}")
         pages, expect, lists = {}, {}, {}
+        if not isinstance(proc.get("pages") or {}, dict):
+            raise ValueError(f"{path.as_posix()}: {v['name']}: pages is an object of years and links")
         for year, entry in (proc.get("pages") or {}).items():
             url = entry.get("url") if isinstance(entry, dict) else entry
             wanted = entry.get("expect", []) if isinstance(entry, dict) else []
@@ -84,11 +86,19 @@ def read_previous(out: Path, venue: Venue, year: int) -> tuple[str, list[Paper],
     path = out / "data" / venue.slug / f"{year}.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        papers = [Paper.from_data(p) for p in data.get("papers") or [] if isinstance(p, dict) and p.get("title")]
-        rule = data.get("rule")
-        return str(data.get("source") or ""), papers, rule if isinstance(rule, int) and not isinstance(rule, bool) else 0
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError):
         return "", [], RULE
+    if not isinstance(data, dict) or not isinstance(data.get("papers") or [], list):
+        return "", [], RULE  # not this tool's data: built afresh
+    papers = []
+    for p in data.get("papers") or []:
+        if isinstance(p, dict) and isinstance(p.get("title"), str) and p["title"]:
+            try:
+                papers.append(Paper.from_data({"year": year, **p}))
+            except TypeError:
+                continue  # one damaged entry is searched again, the others are kept
+    rule = data.get("rule")
+    return str(data.get("source") or ""), papers, rule if isinstance(rule, int) and not isinstance(rule, bool) else 0
 
 
 def _due(tried: str, today: dt.date) -> bool:
@@ -108,8 +118,6 @@ def build_venue_year(
     except those searched in vain less than RETRY_DAYS ago; papers that share a title within the venue-year left
     unmatched (one record cannot be told apart for two papers)."""
     today = today or dt.date.today()
-    if rule < RULE:  # the exact search has changed since: its matches are made again (a batch of 20 costs one search)
-        previous = [Paper(q.title, q.year, q.url) if q.id and q.how in ("exact", "") else q for q in previous]
     url = venue.pages[year]
     papers, seen = [], set()
     for listing in venue.lists.get(year) or [url]:  # a conference may list its papers over several pages (one a day)
@@ -152,12 +160,17 @@ def build_venue_year(
         q = before[id(p)]
         return id(p) not in known and counts[norm[id(p)]] == 1 and bool(norm[id(p)]) and (q is None or not q.tried or _due(q.tried, today))
 
-    to_search = [p.title for p in papers if wanted(p)]
+    # the exact search has changed since these were matched: searched again (a batch of 20 costs one search), the old
+    # match kept until a new one replaces it, so a spent budget loses nothing
+    redo = {k for k, q in known.items() if rule < RULE and q.how in ("exact", "")}
+    to_search = [p.title for p in papers if wanted(p) or id(p) in redo]
     found = match(to_search, year, client.search, close=False) if to_search and not client.exhausted else {}
     out = []
     for p in papers:
         n, q = norm[id(p)], before[id(p)]
-        if id(p) in known and q is not None:
+        if id(p) in redo and n in found and found[n].work is not None:
+            out.append(p.with_work(found[n].work, as_of_year, found[n].also, found[n].how))  # type: ignore[arg-type]
+        elif id(p) in known and q is not None:
             out.append(
                 p.with_work(fresh[q.id], as_of_year, q.also, q.how)
                 if q.id in fresh
@@ -170,7 +183,17 @@ def build_venue_year(
         else:  # a title shared in this venue-year carries no mark: it is never searched
             keep = q is not None and not q.id and counts[n] == 1
             out.append(Paper(p.title, year, p.url, tried=q.tried if keep and q is not None else ""))
-    return VenueYear(venue.name, year, url, out, RULE)
+    done = all(norm[k] in found for k in redo)  # every old match answered under the new rule (else the next build goes on)
+    return VenueYear(venue.name, year, url, out, RULE if done else rule)
+
+
+class Stopped(KeyRejected):
+    """OpenAlex refused the key midway: the run stops, with what it built (the venue-years not reached carried over), to
+    be written before exiting so that the budget spent is not lost."""
+
+    def __init__(self, cause: KeyRejected, built: list[VenueYear], failures: list[Failure]) -> None:
+        super().__init__(str(cause))
+        self.built, self.failures = built, failures
 
 
 @dataclass
@@ -182,26 +205,35 @@ class Failure:
 
 def build(venues: list[Venue], years: range, client: Client, as_of_year: int, out: Path) -> tuple[list[VenueYear], list[Failure]]:
     """Every venue-year of the list: those in `years` built (a failing one, a changed page say, keeps its previous data
-    and is reported); the others carried over from the previous data unchanged. A rejected key stops the run."""
+    and is reported); the others carried over from the previous data unchanged. A rejected key stops the run: Stopped
+    carries what was built, the rest carried over."""
     built: list[VenueYear] = []
     failures: list[Failure] = []
+    rejected: KeyRejected | None = None
     for v in venues:
         for y in sorted(v.pages):
             source, previous, rule = read_previous(out, v, y)
-            if y not in years:
+            if y not in years or rejected is not None:
                 if previous:
                     built.append(VenueYear(v.name, y, source or v.pages[y], previous, rule))
                 continue
             try:
                 built.append(build_venue_year(v, y, client, as_of_year, previous, rule=rule))
-            except KeyRejected:
-                raise
+            except KeyRejected as e:
+                rejected = e
+                if previous:
+                    built.append(VenueYear(v.name, y, source or v.pages[y], previous, rule))
             except (OpenAlexError, ValueError) as e:
                 failures.append(Failure(v.name, y, str(e)))
                 if previous:
                     built.append(VenueYear(v.name, y, source or v.pages[y], previous, rule))
+    if rejected is not None:
+        raise Stopped(rejected, built, failures)
     if not client.exhausted:
-        _close_pass([vy for vy in built if vy.year in years], client, as_of_year)
+        try:
+            _close_pass([vy for vy in built if vy.year in years], client, as_of_year)
+        except KeyRejected as e:
+            raise Stopped(e, built, failures) from e
     return built, failures
 
 
@@ -218,6 +250,7 @@ def _close_pass(venue_years: list[VenueYear], client: Client, as_of_year: int, t
             if not p.id and p.tried.startswith(EXACT_MISSED) and counts[normalize(p.title)] == 1:
                 waiting.append((p.tried, vy, i))
     waiting.sort(key=lambda t: t[0])
+    held = {id(vy): {p.id for p in vy.papers if p.id} for vy in venue_years}
     for _, vy, i in waiting:
         if client.exhausted:
             return
@@ -226,9 +259,12 @@ def _close_pass(venue_years: list[VenueYear], client: Client, as_of_year: int, t
         m = found.get(normalize(p.title))
         if m is None:
             continue  # the budget ran out: it keeps waiting
-        vy.papers[i] = (
-            p.with_work(m.work, as_of_year, m.also, m.how) if m.work is not None else Paper(p.title, p.year, p.url, tried=today.isoformat())
-        )
+        work_id = str((m.work or {}).get("id") or "")
+        if m.work is not None and work_id not in held[id(vy)]:  # a record another paper of the venue-year holds is not this one
+            vy.papers[i] = p.with_work(m.work, as_of_year, m.also, m.how)
+            held[id(vy)].add(work_id)
+        else:
+            vy.papers[i] = Paper(p.title, p.year, p.url, tried=today.isoformat())
 
 
 def write_data(out: Path, venues: list[Venue], venue_years: list[VenueYear], generated: str) -> list[Path]:

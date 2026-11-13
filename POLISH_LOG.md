@@ -289,3 +289,38 @@ pyproject's comment about "templates for the SVG" (copied from scholar-cards) co
 Tests: 48 (were 39). ruff, mypy clean.
 
 Next: round 5 (a third independent review), then v0.1.0.
+
+### 2026-11-13 — polishing round 5
+
+The round-4 rebuild went live: AlexNet now shows its main record (114,706 citations, rule 2), the underscore title
+kept its match, and the site has 57 venue-years (ICLR, CVPR, ACL now in), 1,647 of 69,889 papers matched.
+
+**Third independent review** (5 confirmed, 2 plausible, all fixed; tests in `tests/test_review_round3.py`):
+
+1. A rule upgrade on a spent budget wiped the old exact matches (and stamped the new rule anyway): the 903 live matches
+   survived today only because the budget lasted. Old matches are now kept until a new search replaces them, and the
+   new rule is stamped only when every one of them was searched again.
+2. The looser try for a title of one or two words could never match, but its search was still paid for (every 30
+   days): no search now.
+3. A looser match could take a record another paper of the venue-year already held exactly (one record's citations
+   shown twice, the coverage inflated): refused now.
+4. The ICLR parser merged two different papers of one title (it removed repeats by title, meant for an oral listed
+   under its oral and its poster page): only an oral-and-poster pair is one paper now.
+5. Odd saved data or an odd venue list: one damaged paper entry threw away its whole venue-year (skipped alone now); a
+   data file that is a JSON list, or `pages` given as a list, crashed with a traceback (read as no data / a clean
+   error now).
+6. (plausible) A key refused midway threw away the whole run's matches: the build now writes what it built (the
+   venue-years not reached carried over) and exits 2; the workflow keeps that data in the cache; a refusal without a
+   key no longer asks whether the key is right.
+7. (plausible) A re-run of the site workflow saved its data under the first attempt's cache key (a collision, so the
+   data was not kept): the key now includes the attempt.
+
+Checked by hand that the refused-key test fails for the right reason (the first version passed through the looser
+pass by accident: rewritten, and confirmed the stop comes from the venue-year itself).
+
+Also: release.yml's comment promised `zch6a/paper-impact@v0` for workflows (this project has no action): it is for
+`uvx --from git+...@v0`; the sdist checked (docs/ excluded); CHANGELOG dated.
+
+Tests: 58 (were 48). ruff, mypy clean.
+
+Next: release v0.1.0.

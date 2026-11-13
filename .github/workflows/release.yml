@@ -1,7 +1,8 @@
 name: Release
 # On a version tag: test and build with a read-only token, then make the GitHub release (the version's CHANGELOG
-# section, with the wheel and the source archive) and move the major tag (v0, v1, ...) to it, so workflows can use
-# `zch6a/paper-impact@v0`. The job with write access runs nothing of the project: only gh. Actions pinned to commits.
+# section, with the wheel and the source archive) and move the major tag (v0, v1, ...) to it, so that
+# `uvx --from git+https://github.com/zch6a/paper-impact@v0` gets the latest release of that major version. The job
+# with write access runs nothing of the project: only gh. Actions pinned to commits.
 on:
   push:
     tags: ["v*.*.*"]

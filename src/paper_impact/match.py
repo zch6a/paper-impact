@@ -116,7 +116,7 @@ def _match(titles: list[str], year: int, search: Searcher, batch: int, close: bo
         answer = search(_query([searched[n]], year))
         out[n] = _pick(n, (w for w in answer.get("results") or [] if isinstance(w, dict)), year)
     if close:
-        for n in [n for n, m in out.items() if m.work is None]:
+        for n in [n for n, m in out.items() if m.work is None and not _short(n)]:
             answer = search({"filter": f"title.search:{n},publication_year:{year - 1}-{year + 1}", "per_page": "25", "select": FIELDS})
             out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
 
@@ -127,7 +127,9 @@ def close_match(titles: list[str], year: int, search: Searcher) -> dict[str, Mat
     out: dict[str, Match] = {}
     with contextlib.suppress(BudgetExhausted):
         for n in dict.fromkeys(normalize(t) for t in titles):
-            if n:
+            if n and _short(n):
+                out[n] = Match(n)  # never matched "nearly": no search spent on it
+            elif n:
                 answer = search({"filter": f"title.search:{n},publication_year:{year - 1}-{year + 1}", "per_page": "25", "select": FIELDS})
                 out[n] = _close(n, [w for w in answer.get("results") or [] if isinstance(w, dict)], year)
     return out
@@ -159,8 +161,12 @@ def _stem(word: str) -> str:
     return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word
 
 
+def _short(norm: str) -> bool:
+    return len(norm.split()) <= 2
+
+
 def _close(norm: str, works: list[dict[str, Any]], year: int) -> Match:
-    if len(norm.split()) <= 2:
+    if _short(norm):
         return Match(norm)  # a short title ("Introduction", "Deep Sets"): exact or nothing, never "nearly"
     return _closest(norm, works, year)
 

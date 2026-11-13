@@ -62,7 +62,9 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
   try per miss ($0.05 to $0.15). A paper searched for in vain is searched again only after 30 days. Without
   `OPENALEX_API_KEY` the budget is $0.10 a day shared by everyone on your IP address; a free key gives $1. A rebuild
   reuses the data already in `site/`: only papers not yet found are searched, the others refreshed by ID (100 to a
-  request, $0.0001); a paper whose OpenAlex ID no longer comes back is searched again. A venue-year whose page fails
+  request, $0.0001); a paper whose OpenAlex ID no longer comes back is searched again, and so is every exact match
+  after a change to the matching rule (each keeps its old record until the new search answers). A rejected key stops
+  the build, which still writes what it matched and exits with 2. A venue-year whose page fails
   (it changed, the site is down) keeps its previous data and is reported; the others are built. Two papers with the
   same title in one venue-year are both listed, neither matched (one record cannot be told apart for two papers);
   so are very short titles with many namesakes ("Introduction").

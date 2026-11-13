@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .build import build, read_venues, write_data
+from .build import Stopped, build, read_venues, write_data
 from .openalex import Client, OpenAlexError
 from .site import write_site
 
@@ -48,11 +48,15 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("-o", "--out", type=Path, default=Path("site"), help="the site's folder (default site/); its data is reused")
     b.add_argument("--years", type=_years, default=_years(f"2012-{dt.date.today().year}"), help="e.g. 2015-2025 (default 2012 to this year)")
     args = ap.parse_args(argv)
+    stopped: Stopped | None = None
     try:
         client = Client()
         venues = read_venues(args.venues)
         today = dt.date.today()
-        venue_years, failures = build(venues, args.years, client, today.year, args.out)
+        try:
+            venue_years, failures = build(venues, args.years, client, today.year, args.out)
+        except Stopped as e:  # write what was built (the budget it cost is spent), then report the error
+            stopped, venue_years, failures = e, e.built, e.failures
         write_data(args.out, venues, venue_years, today.isoformat())
         write_site(args.out)
         listed = sum(len(vy.papers) for vy in venue_years)
@@ -66,6 +70,9 @@ def main(argv: list[str] | None = None) -> int:
                   "build (reusing this one's data) carries on; a free OPENALEX_API_KEY makes the budget ten times larger")  # fmt: skip
     except (OpenAlexError, OSError, ValueError) as e:
         print(f"paper-impact: {e}", file=sys.stderr)
+        return 2
+    if stopped is not None:
+        print(f"paper-impact: stopped, what was built so far is written: {stopped}", file=sys.stderr)
         return 2
     return 0
 

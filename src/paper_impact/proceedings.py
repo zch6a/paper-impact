@@ -163,7 +163,7 @@ class _Virtual(_Parser):
         super().__init__(base)
         self._href: str | None = None
         self._text: list[str] = []
-        self._titles: set[str] = set()
+        self._kinds: dict[str, set[str]] = {}  # title -> the kinds of page (poster, oral) it was listed under
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         href = dict(attrs).get("href") or ""
@@ -177,10 +177,13 @@ class _Virtual(_Parser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "a" and self._href is not None:
             title = " ".join("".join(self._text).split())
-            # an oral is listed under its oral and its poster page: one paper (the first link kept)
-            if title and title.casefold() not in self._titles:
-                self._titles.add(title.casefold())
+            # an oral is listed under its oral and its poster page: one paper (the first link kept); two posters (or two
+            # orals) of one title are two papers
+            kind = "oral" if "/oral/" in self._href else "poster"
+            kinds = self._kinds.setdefault(title.casefold(), set())
+            if title and (not kinds or kind in kinds):
                 self.out.append(Listed(title, urllib.parse.urljoin(self.base, self._href)))
+            kinds.add(kind)
             self._href = None
 
 

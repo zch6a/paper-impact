@@ -76,7 +76,8 @@ class Client:
                 self._sleep(min(60.0, seconds))
                 continue
             if status in (401, 403):
-                raise KeyRejected(f"OpenAlex refused the request ({status}): is OPENALEX_API_KEY right? {body[:200].decode('utf-8', 'replace')}")
+                hint = "is OPENALEX_API_KEY right?" if self.key else "it refused requests from this address"
+                raise KeyRejected(f"OpenAlex refused the request ({status}): {hint} {body[:200].decode('utf-8', 'replace')}")
             if status != 200:
                 raise OpenAlexError(f"OpenAlex answered {status} for {url}: {body[:200].decode('utf-8', 'replace')}")
             try:
