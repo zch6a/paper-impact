@@ -43,7 +43,7 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
 ```
 
 [venues.json](venues.json) 按论文集页面列出 NeurIPS 2012–2024、ICML 2013–2025（PMLR）、ICLR 2021–2025（会议网站的论文页）、CVPR 2013–2025（CVF open access）和 ACL 2013–2025（长文；2020 年为主卷，含长文与短文），共 69889 篇；每个页面都写明它必须包含的文字（会议名、年份），
-卷号写错时会直接报错，而不是悄悄混进另一个会议。
+卷号写错时会直接报错，不会悄悄混进另一个会议。
 
 - **匹配**：标题在 OpenAlex 里每次约 20 个一起搜索，只接受规范化后完全相同、年份相差不超过一年的记录；五个词以上的标题也接受年份更晚的记录
   （OpenAlex 有时按后来的重印本给主记录定年份：NeurIPS 2012 的 AlexNet 是一条 2017 年的记录，11 万多次被引都在它上面），这种在数据里标为

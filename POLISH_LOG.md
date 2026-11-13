@@ -324,3 +324,9 @@ Also: release.yml's comment promised `zch6a/paper-impact@v0` for workflows (this
 Tests: 58 (were 48). ruff, mypy clean.
 
 Next: release v0.1.0.
+
+### 2026-11-14 — Chinese README: AI tone
+
+1 place changed: a 「而不是」 correction (报错，而不是悄悄混进另一个会议) stated directly as 不会.
+The checks follow the findings of lieflat-less-ai-tone (shiujan, CC BY-NC 4.0); its findings are applied, its text is not copied.
+Left as is: the colon-led list of why citation counts scatter, the semicolon list of rebuild steps after a colon, venue enumerations, tables, and the tool links.
