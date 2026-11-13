@@ -1,7 +1,7 @@
 {
   "name": "paper-impact",
   "description": "Which papers at AI venues mattered: citations and field-normalized impact from OpenAlex for every paper NeurIPS, ICML, ICLR, CVPR and ACL published, by venue and year, with coverage.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": { "name": "zch6a" },
   "homepage": "https://github.com/zch6a/paper-impact",
   "repository": "https://github.com/zch6a/paper-impact",

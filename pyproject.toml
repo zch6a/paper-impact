@@ -1,6 +1,6 @@
 [project]
 name = "paper-impact"
-version = "0.1.0"
+version = "0.1.1"
 description = "Which papers at AI venues mattered: citations and field-normalized impact from OpenAlex, by venue and year, with coverage against official counts; open JSON and a static site."
 readme = "README.md"
 license = "MIT"

@@ -330,3 +330,11 @@ Next: release v0.1.0.
 1 place changed: a 「而不是」 correction (报错，而不是悄悄混进另一个会议) stated directly as 不会.
 The checks follow the findings of lieflat-less-ai-tone (shiujan, CC BY-NC 4.0); its findings are applied, its text is not copied.
 Left as is: the colon-led list of why citation counts scatter, the semicolon list of rebuild steps after a colon, venue enumerations, tables, and the tool links.
+
+### 2026-11-14 — v0.1.1
+
+Putting every tool's skill into one marketplace (research-kit) and running `claude plugin validate` on each
+showed this one's SKILL.md frontmatter did not parse: a plain YAML value with `: ` inside ("…: text size…")
+starts a new key, so Claude Code loaded the skill with no description, and an agent would never pick it. The
+description and compatibility values are quoted (a JSON string is a YAML double-quoted scalar); validation passes.
+Released as 0.1.1 so that `v0`, which the marketplace installs from, carries the fix.

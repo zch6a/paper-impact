@@ -1,8 +1,8 @@
 ---
 name: paper-impact
-description: Look up which papers at an AI venue mattered with paper-impact: citations, recent citations, field-weighted citation impact and percentile from OpenAlex for every paper NeurIPS, ICML, ICLR, CVPR and ACL published, by venue and year, with how many of the listed papers were matched. Use when the user asks for the most cited or most influential papers of a venue and year, how a paper did against its venue, or wants to build the same data for another venue list.
+description: "Look up which papers at an AI venue mattered with paper-impact: citations, recent citations, field-weighted citation impact and percentile from OpenAlex for every paper NeurIPS, ICML, ICLR, CVPR and ACL published, by venue and year, with how many of the listed papers were matched. Use when the user asks for the most cited or most influential papers of a venue and year, how a paper did against its venue, or wants to build the same data for another venue list."
 license: MIT
-compatibility: Reading needs only HTTPS to zch6a.github.io. Building needs Python 3.10+ and uv; it runs paper-impact with uvx from GitHub (git+https://github.com/zch6a/paper-impact) and reaches the proceedings sites and the OpenAlex API.
+compatibility: "Reading needs only HTTPS to zch6a.github.io. Building needs Python 3.10+ and uv; it runs paper-impact with uvx from GitHub (git+https://github.com/zch6a/paper-impact) and reaches the proceedings sites and the OpenAlex API."
 metadata:
   homepage: https://github.com/zch6a/paper-impact
 ---
