@@ -55,6 +55,25 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
 - **每日构建**（[site.yml](.github/workflows/site.yml)）：构建任务用只读权限运行，数据存在 Actions 缓存里；部署任务只负责发布到 Pages。
   每次运行先对所有会议年份分批做精确标题搜索，剩下的额度再做宽松重试。不带 key 时用的是 runner 共享的 0.10 美元额度，最初几次运行每次只匹配约 250 到 650 篇，网站要几个月才能填满；在仓库里加一个 `OPENALEX_API_KEY` secret（每天 1000 次搜索、约 2 万个标题）最多几周。
 
+## 今天的 arXiv，有信号的排前面：`paper-impact today`
+
+每日推荐工具按论文和你研究方向的接近程度排序。`paper-impact today cs.CL` 按论文本身给出的信号给某个分类的最新投稿排序，并说明是哪种信号：**已接收**（arXiv 的备注写明被某个会议或期刊接收：“Accepted at NeurIPS 2026”、“Published in ACM Multimedia 2026”、“WSDM camera ready”；研讨会分量低一些）、**有代码**（GitHub、GitLab、Hugging Face 或项目主页的链接，或 “code is available”），以及加 `--citations` 时已有多少引用（来自 OpenAlex，按 arXiv 的 DOI 查；适合 `--days 7` 以上）。没有信号的论文并不是更差，只是还没有给出这些信息。
+
+```console
+$ paper-impact today cs.CL --days 2 --top 3
+cs.CL: 60 papers, 22 with signs (accepted 7, code 17)
+
+2026-11-12  2611.16694   When Expert Disagreement Hurts: Prestige and Selectivity in LLM Decision Revision
+            Yupeng Tang, Mingfeng Lin  ·  accepted: NeurIPS; code
+            https://github.com/yupengtang/when-expert-disagreement-hurts
+2026-11-12  2611.17287   Negative-Only Policy Optimization for One-Sided Verifiable Rewards
+            Jiacheng Xu, Shuo He, Fuxiang Zhang et al.  ·  accepted: NeurIPS
+2026-11-12  2611.17107   Disentangling Spurious Correlations: How IRM Handles Diverse Shortcuts in Text Classification
+            Paul Grunenwald, Benoît Crabbé, Guillaume Wisniewski et al.  ·  accepted: EMNLP
+```
+
+以上是第一次运行的输出（截至 2026-11-14 的两天）。它给出的每个信号都是对的（7 篇已接收、17 个代码链接）；漏掉了 4 篇在列表之外的会议或期刊的接收（“Accepted to IEEE TASLP”、“Published at ... INLG”、“Accepted for publication in PMLR”、“WSDM camera ready”），所以现在任何接收的说法都算，并原样显示会议名。同两天的 cs.CV 共 86 篇：18 篇已接收、29 个代码信号，都是真的（其中一篇摘要里的链接是占位的 `https://github.com.`）。备注里只写 “NeurIPS 2026” 的不算：它也可能只是投稿。`--format markdown` 用于 issue 或网页，`--format json` 输出全部内容；每 100 篇向 arXiv 请求一次，间隔三秒。
+
 ## 这些数字是什么
 
 | | |

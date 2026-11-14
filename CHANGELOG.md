@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — 2026-11-14
+
+- **`paper-impact today CATEGORY`**: the newest arXiv submissions to a category, ranked by the signs each paper shows
+  about itself: accepted at a venue (from the arXiv comment, any venue; a workshop counts for less), code released (a
+  repository, model or project-page link, or "code is available"), and with `--citations` OpenAlex's citation count by
+  the arXiv DOI. `--days`, `--limit`, `--top`, `--format text|markdown|json`. arXiv is asked once per 100 papers,
+  three seconds apart. Checked by hand on cs.CL and cs.CV: every sign shown was genuine.
+- A CITATION.cff.
+
 ## 0.1.1 — 2026-11-14
 
 - The agent skill's frontmatter is valid YAML again: its description held a `: `, which YAML reads as a new key, so

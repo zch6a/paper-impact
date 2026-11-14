@@ -32,3 +32,9 @@ uvx --from git+https://github.com/zch6a/paper-impact paper-impact build venues.j
   the same `-o` carries on from the data there.
 - Without a key OpenAlex's free budget matches only a few hundred papers a day; a free `OPENALEX_API_KEY` raises it.
   Getting a key is the user's decision: never request one for them, and never put one in a file or a URL.
+
+## Today's arXiv, signs first
+
+`paper-impact today cs.CL` (any arXiv category; `--days N`, `--citations`, `--format markdown|json`) lists the newest
+submissions with those accepted at a venue or with code first, each sign named. Present the signs as what the paper
+states about itself, not as a judgement of quality, and say that papers without signs are listed after the others.

@@ -343,3 +343,19 @@ Released as 0.1.1 so that `v0`, which the marketplace installs from, carries the
 
 Both READMEs now end (before the licence) with a short section pointing to research-kit, the toolkit's front door: all
 thirteen tools in the order of the work, and one Claude Code plugin marketplace for their skills. Documentation only.
+
+### 2026-11-14 — 0.2.0: paper-impact today
+
+From research-kit's list: "rank the daily feed by signs that a paper will matter: accepted venue, released code,
+early citations" (recommenders score closeness to your topics only).
+
+`today.py`: arXiv's API by category and submission date, signs from the comment and abstract, OpenAlex citations by
+the arXiv DOI (50 to a request), a stable ranking (score, then newest).
+
+Checked by hand on real days (to 2026-11-14): cs.CL, 60 papers. Every sign shown was right (7 acceptances, 17 code);
+4 acceptances were missed because the venue was not in the list or had no year ("Accepted to IEEE TASLP 2026",
+"Published at the 19th ... INLG", "Accepted for publication in PMLR", "WSDM camera ready"). Now any acceptance phrase
+counts, with the venue's words. cs.CV, 86 papers: 18 acceptances, all genuine (WACV, BMVC, ICME, ACM MM, CoRL,
+workshops marked), 29 code signs, all genuine; one abstract's link was a placeholder ("github.com."), and the phrase
+"code is available" was shown where a link followed it: the link is shown now. Bare "NeurIPS 2026" comments are left
+out on purpose (a submission or an acceptance?). 3 tests with a made-up arXiv feed and OpenAlex.

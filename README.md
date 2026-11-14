@@ -74,6 +74,36 @@ text it must contain (the venue, the year), so a wrong volume fails instead of b
   runner's shared $0.10, and the first runs matched about 250 to 650 papers each, so the site fills over months; an
   `OPENALEX_API_KEY` secret (1,000 searches a day, about 20,000 titles) makes it weeks at most.
 
+## Today's arXiv, signs first: `paper-impact today`
+
+Daily recommenders rank new papers by how close they are to your topics. `paper-impact today cs.CL` ranks the newest
+submissions to a category by what each paper itself shows, and names the sign: **accepted** (the arXiv comment says
+a venue took it: "Accepted at NeurIPS 2026", "Published in ACM Multimedia 2026", "WSDM camera ready"; a workshop
+counts for less), **code** (a GitHub, GitLab, Hugging Face or project-page link, or "code is available"), and, with
+`--citations`, how many works already cite it (OpenAlex, by the arXiv DOI: worth it for `--days 7` and more). A paper
+with no signs is not a worse paper; it has not said anything yet.
+
+```console
+$ paper-impact today cs.CL --days 2 --top 3
+cs.CL: 60 papers, 22 with signs (accepted 7, code 17)
+
+2026-11-12  2611.16694   When Expert Disagreement Hurts: Prestige and Selectivity in LLM Decision Revision
+            Yupeng Tang, Mingfeng Lin  ·  accepted: NeurIPS; code
+            https://github.com/yupengtang/when-expert-disagreement-hurts
+2026-11-12  2611.17287   Negative-Only Policy Optimization for One-Sided Verifiable Rewards
+            Jiacheng Xu, Shuo He, Fuxiang Zhang et al.  ·  accepted: NeurIPS
+2026-11-12  2611.17107   Disentangling Spurious Correlations: How IRM Handles Diverse Shortcuts in Text Classification
+            Paul Grunenwald, Benoît Crabbé, Guillaume Wisniewski et al.  ·  accepted: EMNLP
+```
+
+That was the first run, on the two days to 2026-11-14 (the line above is its output). Every sign it showed was right
+(7 acceptances, 17 code links); it missed four acceptances at venues outside its list ("Accepted to IEEE TASLP",
+"Published at ... INLG", "Accepted for publication in PMLR", "WSDM camera ready"), so now any acceptance phrase
+counts, with the venue as written. On cs.CV the same days, 86 papers: 18 acceptances and 29 code signs, all genuine
+(one abstract's link was a placeholder, `https://github.com.`). A comment that only says "NeurIPS 2026" is not
+counted: it can mean a submission. `--format markdown` for an issue or a page, `--format json` for everything; arXiv is
+asked once per 100 papers, three seconds apart.
+
 ## What the numbers are
 
 | | |

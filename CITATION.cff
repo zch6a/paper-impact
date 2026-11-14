@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use paper-impact in your research, please cite it as below."
+title: "paper-impact: which papers at AI venues mattered, and today's arXiv ranked by its signs"
+type: software
+authors:
+  - alias: zch6a
+repository-code: "https://github.com/zch6a/paper-impact"
+license: MIT
+version: "0.2.0"
+date-released: "2026-11-14"

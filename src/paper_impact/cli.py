@@ -2,6 +2,7 @@
 proceedings list; their citations and field-normalized impact are OpenAlex's.
 
 paper-impact build venues.json -o site/ --years 2015-2025     read the proceedings, match the papers, write the site
+paper-impact today cs.CL                                     the newest arXiv papers, those with signs they will matter first
 
 Matching titles is an OpenAlex search ($0.001 each; about one per 20 papers). Without OPENALEX_API_KEY the budget is
 $0.10 a day shared by everyone on your IP address; a free key gives $1. A rebuild only searches papers it has not
@@ -47,7 +48,16 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("venues", type=Path, help="the venue list (JSON)")
     b.add_argument("-o", "--out", type=Path, default=Path("site"), help="the site's folder (default site/); its data is reused")
     b.add_argument("--years", type=_years, default=_years(f"2012-{dt.date.today().year}"), help="e.g. 2015-2025 (default 2012 to this year)")
+    d = sub.add_parser("today", help="the newest arXiv papers in a category, those accepted somewhere or with code first")
+    d.add_argument("category", help="an arXiv category, e.g. cs.CL, cs.LG, cs.CV, stat.ML")
+    d.add_argument("--days", type=int, default=2, help="how far back (default 2 days)")
+    d.add_argument("--limit", type=int, default=400, help="at most this many submissions read (default 400)")
+    d.add_argument("--top", type=int, default=25, help="how many to show (default 25)")
+    d.add_argument("--citations", action="store_true", help="also OpenAlex's citation counts (useful for --days 7 and more)")
+    d.add_argument("--format", choices=["text", "markdown", "json"], default="text")
     args = ap.parse_args(argv)
+    if args.command == "today":
+        return _today(args)
     stopped: Stopped | None = None
     try:
         client = Client()
@@ -74,6 +84,32 @@ def main(argv: list[str] | None = None) -> int:
     if stopped is not None:
         print(f"paper-impact: stopped, what was built so far is written: {stopped}", file=sys.stderr)
         return 2
+    return 0
+
+
+def _today(args: argparse.Namespace) -> int:
+    import re as _re
+    import urllib.error
+
+    from . import today
+
+    if not _re.fullmatch(r"[a-z-]+(?:\.[A-Za-z-]+)?", args.category):
+        print(f"paper-impact: {args.category!r} is not an arXiv category (cs.CL, cs.LG, stat.ML, ...)", file=sys.stderr)
+        return 2
+    try:
+        papers = today.fetch(args.category, args.days, args.limit)
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"paper-impact: arXiv could not be read: {e}", file=sys.stderr)
+        return 2
+    if args.citations:
+        today.citations(papers, Client())
+    ranked = today.rank(papers)
+    if args.format == "json":
+        sys.stdout.write(today.to_json(args.category, ranked))
+    elif args.format == "markdown":
+        sys.stdout.write(today.markdown(args.category, ranked, args.top))
+    else:
+        sys.stdout.write(today.text(args.category, ranked, args.top))
     return 0
 
 
